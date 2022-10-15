@@ -24,7 +24,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
@@ -67,14 +66,6 @@ func switchContext(context string) {
 	}
 }
 
-func buildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) {
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
-		&clientcmd.ConfigOverrides{
-			CurrentContext: context,
-		}).ClientConfig()
-}
-
 func getConfigFromConfig(context, kubeconfigPath string) string {
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
@@ -95,7 +86,7 @@ func getConfigFromConfig(context, kubeconfigPath string) string {
 }
 
 type ContainerList struct {
-	deployment map[string]ContainerInfo
+	container map[string]ContainerInfo
 }
 
 type ContainerInfo struct {
@@ -105,7 +96,7 @@ type ContainerInfo struct {
 
 func getDeployment() ContainerList {
 	cl := ContainerList{
-		deployment: map[string]ContainerInfo{},
+		container: map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -121,7 +112,7 @@ func getDeployment() ContainerList {
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
-				cl.deployment[containerName] = ContainerInfo{
+				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
 				}
@@ -149,13 +140,13 @@ func compareComponents(c1 string, c2 string, n string) {
 
 	set := make(map[string]bool)
 
-	for i := range l1.deployment {
+	for i := range l1.container {
 		if !set[i] {
 			set[i] = true
 		}
 	}
 
-	for i := range l2.deployment {
+	for i := range l2.container {
 		if !set[i] {
 			set[i] = true
 		}
@@ -169,24 +160,24 @@ func compareComponents(c1 string, c2 string, n string) {
 
 	for i := range set {
 		index = index + 1
-		if _, ok := l1.deployment[i]; !ok {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+		if _, ok := l1.container[i]; !ok {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
 			t.AppendRows([]table.Row{
-				{index, i, string, "X"},
+				{index, i, string, "🥹"},
 			})
-		} else if _, ok := l2.deployment[i]; !ok {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+		} else if _, ok := l2.container[i]; !ok {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
 			t.AppendRows([]table.Row{
-				{index, i, string, "X"},
+				{index, i, string, "🥹"},
 			})
-		} else if l1.deployment[i].Name != l2.deployment[i].Name {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+		} else if l1.container[i].Name != l2.container[i].Name {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
 			t.AppendRows([]table.Row{
-				{index, i, string, "X"},
+				{index, i, string, "🥹"},
 			})
 		} else {
 			t.AppendRows([]table.Row{
-				{index, i, "", "X"},
+				{index, i, "", "😊"},
 			})
 		}
 	}
@@ -194,5 +185,5 @@ func compareComponents(c1 string, c2 string, n string) {
 }
 
 func main() {
-	compareComponents("", "", "deployment")
+	compareComponents("test1", "test2", "deployment")
 }
