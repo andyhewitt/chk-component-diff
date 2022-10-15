@@ -18,16 +18,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+
+	"github.com/jedib0t/go-pretty/v6/table"
 	//
 	// Uncomment to load all auth plugins
 	// _ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -35,7 +36,7 @@ import (
 	// Or uncomment to load specific auth plugins
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 var (
@@ -93,32 +94,105 @@ func getConfigFromConfig(context, kubeconfigPath string) string {
 	return ""
 }
 
-func main() {
+type ContainerList struct {
+	deployment map[string]ContainerInfo
+}
 
-	for {
-		pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+type ContainerInfo struct {
+	Name      string
+	Namespace string
+}
+
+func getDeployment() ContainerList {
+	cl := ContainerList{
+		deployment: map[string]ContainerInfo{},
+	}
+
+	namespaces := []string{
+		"kube-system",
+	}
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err.Error())
 		}
-		fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-
-		// Examples for error handling:
-		// - Use helper functions like e.g. errors.IsNotFound()
-		// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-		namespace := "default"
-		pod := "example-xxxxx"
-		_, err = clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			fmt.Printf("Pod %s in namespace %s not found\n", pod, namespace)
-		} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-			fmt.Printf("Error getting pod %s in namespace %s: %v\n",
-				pod, namespace, statusError.ErrStatus.Message)
-		} else if err != nil {
-			panic(err.Error())
-		} else {
-			fmt.Printf("Found pod %s in namespace %s\n", pod, namespace)
+		for _, d := range resource.Items {
+			for _, c := range d.Spec.Template.Spec.Containers {
+				imageName := c.Image
+				containerName := c.Name
+				m := regexp.MustCompile("^registry.+net/")
+				cl.deployment[containerName] = ContainerInfo{
+					Name:      m.ReplaceAllString(imageName, ""),
+					Namespace: ns,
+				}
+			}
 		}
-
-		time.Sleep(10 * time.Second)
 	}
+
+	return cl
+}
+
+func compareComponents(c1 string, c2 string, n string) {
+	var l1 ContainerList
+	var l2 ContainerList
+
+	var currentcontext string
+	switch n {
+	case "deployment":
+		currentcontext = getConfigFromConfig(c1, *kubeconfig)
+		switchContext(currentcontext)
+		l1 = getDeployment()
+		currentcontext = getConfigFromConfig(c2, *kubeconfig)
+		switchContext(currentcontext)
+		l2 = getDeployment()
+	}
+
+	set := make(map[string]bool)
+
+	for i := range l1.deployment {
+		if !set[i] {
+			set[i] = true
+		}
+	}
+
+	for i := range l2.deployment {
+		if !set[i] {
+			set[i] = true
+		}
+	}
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"#", "Resource", "Summary", "Status"})
+
+	var index = 0
+
+	for i := range set {
+		index = index + 1
+		if _, ok := l1.deployment[i]; !ok {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+			t.AppendRows([]table.Row{
+				{index, i, string, "X"},
+			})
+		} else if _, ok := l2.deployment[i]; !ok {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+			t.AppendRows([]table.Row{
+				{index, i, string, "X"},
+			})
+		} else if l1.deployment[i].Name != l2.deployment[i].Name {
+			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.deployment[i].Name, c2, l2.deployment[i].Name)
+			t.AppendRows([]table.Row{
+				{index, i, string, "X"},
+			})
+		} else {
+			t.AppendRows([]table.Row{
+				{index, i, "", "X"},
+			})
+		}
+	}
+	t.Render()
+}
+
+func main() {
+	compareComponents("", "", "deployment")
 }
