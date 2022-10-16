@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -112,6 +113,9 @@ func getDeployment() ContainerList {
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
+				separateImageRegex := regexp.MustCompile(".+/(.+):(.+)")
+				rs := separateImageRegex.FindStringSubmatch(imageName)
+				fmt.Printf("%v, %v, %v\n", rs[0], rs[1], rs[2])
 				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
@@ -119,38 +123,72 @@ func getDeployment() ContainerList {
 			}
 		}
 	}
-
 	return cl
 }
 
-func compareComponents(c1 string, c2 string, n string) {
-	var l1 ContainerList
-	var l2 ContainerList
+func getPod() ContainerList {
+	cl := ContainerList{
+		container: map[string]ContainerInfo{},
+	}
+
+	namespaces := []string{
+		"kube-system",
+	}
+	for _, ns := range namespaces {
+		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			for _, c := range d.Spec.Containers {
+				imageName := c.Image
+				containerName := c.Name
+				m := regexp.MustCompile("^registry.+net/")
+				cl.container[containerName] = ContainerInfo{
+					Name:      m.ReplaceAllString(imageName, ""),
+					Namespace: ns,
+				}
+			}
+		}
+	}
+	return cl
+}
+
+func compareComponents(n string, clusters ...string) {
+	var l []ContainerList
 
 	var currentcontext string
-	switch n {
-	case "deployment":
-		currentcontext = getConfigFromConfig(c1, *kubeconfig)
-		switchContext(currentcontext)
-		l1 = getDeployment()
-		currentcontext = getConfigFromConfig(c2, *kubeconfig)
-		switchContext(currentcontext)
-		l2 = getDeployment()
-	}
-
 	set := make(map[string]bool)
 
-	for i := range l1.container {
-		if !set[i] {
-			set[i] = true
+	switch n {
+	case "deployment":
+		fmt.Printf("Pass")
+		// currentcontext = getConfigFromConfig(c1, *kubeconfig)
+		// switchContext(currentcontext)
+		// l1 = getDeployment()
+		// currentcontext = getConfigFromConfig(c2, *kubeconfig)
+		// switchContext(currentcontext)
+		// l2 = getDeployment()
+	case "pod":
+		for _, c := range clusters {
+			currentcontext = getConfigFromConfig(c, *kubeconfig)
+			switchContext(currentcontext)
+			list := getPod()
+			fmt.Print(list)
+			for i := range list.container {
+				if !set[i] {
+					set[i] = true
+				}
+			}
+			l = append(l, list)
 		}
 	}
 
-	for i := range l2.container {
-		if !set[i] {
-			set[i] = true
-		}
-	}
+	// for i := range l2.container {
+	// 	if !set[i] {
+	// 		set[i] = true
+	// 	}
+	// }
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -160,30 +198,41 @@ func compareComponents(c1 string, c2 string, n string) {
 
 	for i := range set {
 		index = index + 1
-		if _, ok := l1.container[i]; !ok {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-			t.AppendRows([]table.Row{
-				{index, i, string, "🥹"},
-			})
-		} else if _, ok := l2.container[i]; !ok {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-			t.AppendRows([]table.Row{
-				{index, i, string, "🥹"},
-			})
-		} else if l1.container[i].Name != l2.container[i].Name {
-			string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-			t.AppendRows([]table.Row{
-				{index, i, string, "🥹"},
-			})
-		} else {
-			t.AppendRows([]table.Row{
-				{index, i, "", "😊"},
-			})
+		var stringList []string
+		for _, c := range l {
+			if _, ok := c.container[i]; !ok {
+				string := fmt.Sprintf("%v has: %v\n", c, c.container[i].Name)
+				stringList = append(stringList, string)
+			}
 		}
+		t.AppendRows([]table.Row{
+			{index, i, strings.Join(stringList, ""), "🥹"},
+		})
+		// if _, ok := l1.container[i]; !ok {
+		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, string, "🥹"},
+		// 	})
+		// } else if _, ok := l2.container[i]; !ok {
+		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, string, "🥹"},
+		// 	})
+		// } else if l1.container[i].Name != l2.container[i].Name {
+		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, string, "🥹"},
+		// 	})
+		// } else {
+		//     string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, string, "😊"},
+		// 	})
+		// }
 	}
 	t.Render()
 }
 
 func main() {
-	compareComponents("test1", "test2", "deployment")
+	compareComponents("pod", "test1", "test2")
 }
