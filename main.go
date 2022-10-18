@@ -60,6 +60,7 @@ func switchContext(context string) {
 		panic(err.Error())
 	}
 
+    fmt.Print(context)
 	// create the clientset
 	clientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
@@ -170,26 +171,32 @@ func compareComponents(n string, clusters ...string) {
 		// switchContext(currentcontext)
 		// l2 = getDeployment()
 	case "pod":
-		for _, c := range clusters {
-			currentcontext = getConfigFromConfig(c, *kubeconfig)
-			switchContext(currentcontext)
-			list := getPod()
-			fmt.Print(list)
-			for i := range list.container {
-				if !set[i] {
-					set[i] = true
-				}
-			}
-			l = append(l, list)
-		}
+		// for _, c := range clusters {
+		//     fmt.Printf("%v\n",c)
+		// 	currentcontext = getConfigFromConfig(c, *kubeconfig)
+		// 	switchContext(currentcontext)
+		// 	list := getPod()
+		//     fmt.Printf("%v\n", list)
+		// 	for i := range list.container {
+		// 		if !set[i] {
+		// 			set[i] = true
+		// 		}
+		// 	}
+		// 	l = append(l, list)
+		// }
+		c1 := "test1"
+		currentcontext = getConfigFromConfig(c1, *kubeconfig)
+        fmt.Print(currentcontext)
+		switchContext(currentcontext)
+		list1 := getPod()
+		fmt.Printf("%v\n", list1)
+		// c2 := clusters[1]
+		// currentcontext = getConfigFromConfig(c2, *kubeconfig)
+		// switchContext(currentcontext)
+		// list2 := getPod()
+		// fmt.Printf("%v\n", list2)
 	}
-
-	// for i := range l2.container {
-	// 	if !set[i] {
-	// 		set[i] = true
-	// 	}
-	// }
-
+	// fmt.Printf("%v\n", l)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"#", "Resource", "Summary", "Status"})
@@ -197,10 +204,15 @@ func compareComponents(n string, clusters ...string) {
 	var index = 0
 
 	for i := range set {
+		// fmt.Printf("%v\n", i)
 		index = index + 1
 		var stringList []string
 		for _, c := range l {
+			// fmt.Printf("%v\n", c.container[i])
 			if _, ok := c.container[i]; !ok {
+				string := fmt.Sprintf("%v has: %v\n", c, c.container[i].Name)
+				stringList = append(stringList, string)
+			} else if l[0].container[i].Name != c.container[i].Name {
 				string := fmt.Sprintf("%v has: %v\n", c, c.container[i].Name)
 				stringList = append(stringList, string)
 			}
@@ -208,31 +220,10 @@ func compareComponents(n string, clusters ...string) {
 		t.AppendRows([]table.Row{
 			{index, i, strings.Join(stringList, ""), "🥹"},
 		})
-		// if _, ok := l1.container[i]; !ok {
-		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, string, "🥹"},
-		// 	})
-		// } else if _, ok := l2.container[i]; !ok {
-		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, string, "🥹"},
-		// 	})
-		// } else if l1.container[i].Name != l2.container[i].Name {
-		// 	string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, string, "🥹"},
-		// 	})
-		// } else {
-		//     string := fmt.Sprintf("%v has: %v\n%v has: %v", c1, l1.container[i].Name, c2, l2.container[i].Name)
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, string, "😊"},
-		// 	})
-		// }
 	}
-	t.Render()
+	// t.Render()
 }
 
 func main() {
-	compareComponents("pod", "test1", "test2")
+	compareComponents("pod", "test2", "test1")
 }
