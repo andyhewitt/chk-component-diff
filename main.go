@@ -103,6 +103,9 @@ type ContainerInfo struct {
 	Name      string
 	Namespace string
 	Cluster   string
+	Registry  string
+	Image     string
+	Version   string
 }
 
 func getDeployment(cluster string) ContainerList {
@@ -123,13 +126,16 @@ func getDeployment(cluster string) ContainerList {
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
-				separateImageRegex := regexp.MustCompile(".+/(.+):(.+)")
+				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
-				fmt.Printf("%v, %v, %v\n", rs[0], rs[1], rs[2])
+				fmt.Printf("%v, %v, %v\n", rs[1], rs[2], rs[3])
 				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
 					Cluster:   cluster,
+					Registry:  rs[1],
+					Image:     rs[2],
+					Version:   rs[3],
 				}
 			}
 		}
@@ -155,10 +161,15 @@ func getPod(cluster string) ContainerList {
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
+				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
+				rs := separateImageRegex.FindStringSubmatch(imageName)
 				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
 					Cluster:   cluster,
+					Registry:  rs[1],
+					Image:     rs[2],
+					Version:   rs[3],
 				}
 			}
 		}
@@ -174,13 +185,17 @@ func compareComponents(n string, clusters ...string) {
 
 	switch n {
 	case "deployment":
-		fmt.Printf("Pass")
-		// currentcontext = getConfigFromConfig(c1, *kubeconfig)
-		// switchContext(currentcontext)
-		// l1 = getDeployment()
-		// currentcontext = getConfigFromConfig(c2, *kubeconfig)
-		// switchContext(currentcontext)
-		// l2 = getDeployment()
+		for _, c := range clusters {
+			currentcontext = getConfigFromConfig(c, *kubeconfig)
+			switchContext(currentcontext)
+			list := getDeployment(currentcontext)
+			for i := range list.container {
+				if !set[i] {
+					set[i] = true
+				}
+			}
+			l = append(l, list)
+		}
 	case "pod":
 		for _, c := range clusters {
 			currentcontext = getConfigFromConfig(c, *kubeconfig)
@@ -194,7 +209,7 @@ func compareComponents(n string, clusters ...string) {
 			l = append(l, list)
 		}
 	}
-	// fmt.Printf("%v\n", l)
+
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"#", "Resource", "Summary", "Status"})
@@ -202,28 +217,33 @@ func compareComponents(n string, clusters ...string) {
 	var index = 0
 
 	for i := range set {
-		// fmt.Printf("%v\n", i)
 		index = index + 1
 		var stringList []string
 		var line string
+		var flag bool
 		for _, c := range l {
-			// fmt.Printf("%v\n", c.container[i])
+			line = fmt.Sprintf("%v:\nimage: %v\nversion: %v", c.container[i].Cluster, c.container[i].Image, c.container[i].Version)
 			if _, ok := c.container[i]; !ok {
-				line = fmt.Sprintf("%v has: %v\n", c.container[i].Cluster, c.container[i].Name)
-				fmt.Printf("%v\n", line)
+				flag = true
 			} else if l[0].container[i].Name != c.container[i].Name {
-				line = fmt.Sprintf("%v has: %v\n", c.container[i].Cluster, c.container[i].Name)
-				fmt.Printf("%v\n", line)
+				flag = true
 			}
 			stringList = append(stringList, line)
 		}
-		t.AppendRows([]table.Row{
-			{index, i, strings.Join(stringList, "\n"), "🥹"},
-		})
+		if flag {
+			t.AppendRows([]table.Row{
+				{index, i, strings.Join(stringList, "\n"), "N"},
+			})
+		} else {
+			t.AppendRows([]table.Row{
+				{index, i, strings.Join(stringList, "\n"), "Y"},
+			})
+		}
+		t.AppendSeparator()
 	}
 	t.Render()
 }
 
 func main() {
-	compareComponents("pod", "test2", "test1")
+	compareComponents("pod", "minikube", "test1")
 }
