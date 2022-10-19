@@ -24,6 +24,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
@@ -54,7 +55,7 @@ func init() {
 
 func switchContext(context string) {
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := buildConfigFromFlags(context, *kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -65,6 +66,15 @@ func switchContext(context string) {
 		panic(err.Error())
 	}
 }
+
+func buildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) {
+        return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+                &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+                &clientcmd.ConfigOverrides{
+                        CurrentContext: context,
+                }).ClientConfig()
+}
+
 
 func getConfigFromConfig(context, kubeconfigPath string) string {
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -123,6 +133,35 @@ func getDeployment() ContainerList {
 	return cl
 }
 
+func getDasmonSet() ContainerList {
+	cl := ContainerList{
+		container: map[string]ContainerInfo{},
+	}
+
+	namespaces := []string{
+		"kube-system",
+	}
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			for _, c := range d.Spec.Template.Spec.Containers {
+				imageName := c.Image
+				containerName := c.Name
+				m := regexp.MustCompile("^registry.+net/")
+				cl.container[containerName] = ContainerInfo{
+					Name:      m.ReplaceAllString(imageName, ""),
+					Namespace: ns,
+				}
+			}
+		}
+	}
+
+	return cl
+}
+
 func compareComponents(c1 string, c2 string, n string) {
 	var l1 ContainerList
 	var l2 ContainerList
@@ -136,6 +175,18 @@ func compareComponents(c1 string, c2 string, n string) {
 		currentcontext = getConfigFromConfig(c2, *kubeconfig)
 		switchContext(currentcontext)
 		l2 = getDeployment()
+    case "daemonset":
+        currentcontext = getConfigFromConfig(c1, *kubeconfig)
+        fmt.Printf("%v\n", currentcontext)
+		switchContext(currentcontext)
+		l1 = getDasmonSet()
+        fmt.Print(l1)
+        fmt.Print("--")
+		currentcontext = getConfigFromConfig(c2, *kubeconfig)
+		switchContext(currentcontext)
+		l2 = getDasmonSet()
+        fmt.Print(l2)
+        fmt.Print("--")
 	}
 
 	set := make(map[string]bool)
@@ -185,5 +236,5 @@ func compareComponents(c1 string, c2 string, n string) {
 }
 
 func main() {
-	compareComponents("test1", "test2", "deployment")
+	compareComponents("test1", "test2", "daemonset")
 }
