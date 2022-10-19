@@ -25,6 +25,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
@@ -55,17 +56,24 @@ func init() {
 
 func switchContext(context string) {
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := buildConfigFromFlags(context, *kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
 
-    fmt.Print(context)
 	// create the clientset
 	clientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func buildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) {
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+		&clientcmd.ConfigOverrides{
+			CurrentContext: context,
+		}).ClientConfig()
 }
 
 func getConfigFromConfig(context, kubeconfigPath string) string {
@@ -94,9 +102,10 @@ type ContainerList struct {
 type ContainerInfo struct {
 	Name      string
 	Namespace string
+	Cluster   string
 }
 
-func getDeployment() ContainerList {
+func getDeployment(cluster string) ContainerList {
 	cl := ContainerList{
 		container: map[string]ContainerInfo{},
 	}
@@ -120,6 +129,7 @@ func getDeployment() ContainerList {
 				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
+					Cluster:   cluster,
 				}
 			}
 		}
@@ -127,7 +137,7 @@ func getDeployment() ContainerList {
 	return cl
 }
 
-func getPod() ContainerList {
+func getPod(cluster string) ContainerList {
 	cl := ContainerList{
 		container: map[string]ContainerInfo{},
 	}
@@ -148,6 +158,7 @@ func getPod() ContainerList {
 				cl.container[containerName] = ContainerInfo{
 					Name:      m.ReplaceAllString(imageName, ""),
 					Namespace: ns,
+					Cluster:   cluster,
 				}
 			}
 		}
@@ -171,30 +182,17 @@ func compareComponents(n string, clusters ...string) {
 		// switchContext(currentcontext)
 		// l2 = getDeployment()
 	case "pod":
-		// for _, c := range clusters {
-		//     fmt.Printf("%v\n",c)
-		// 	currentcontext = getConfigFromConfig(c, *kubeconfig)
-		// 	switchContext(currentcontext)
-		// 	list := getPod()
-		//     fmt.Printf("%v\n", list)
-		// 	for i := range list.container {
-		// 		if !set[i] {
-		// 			set[i] = true
-		// 		}
-		// 	}
-		// 	l = append(l, list)
-		// }
-		c1 := "test1"
-		currentcontext = getConfigFromConfig(c1, *kubeconfig)
-        fmt.Print(currentcontext)
-		switchContext(currentcontext)
-		list1 := getPod()
-		fmt.Printf("%v\n", list1)
-		// c2 := clusters[1]
-		// currentcontext = getConfigFromConfig(c2, *kubeconfig)
-		// switchContext(currentcontext)
-		// list2 := getPod()
-		// fmt.Printf("%v\n", list2)
+		for _, c := range clusters {
+			currentcontext = getConfigFromConfig(c, *kubeconfig)
+			switchContext(currentcontext)
+			list := getPod(currentcontext)
+			for i := range list.container {
+				if !set[i] {
+					set[i] = true
+				}
+			}
+			l = append(l, list)
+		}
 	}
 	// fmt.Printf("%v\n", l)
 	t := table.NewWriter()
@@ -207,21 +205,23 @@ func compareComponents(n string, clusters ...string) {
 		// fmt.Printf("%v\n", i)
 		index = index + 1
 		var stringList []string
+		var line string
 		for _, c := range l {
 			// fmt.Printf("%v\n", c.container[i])
 			if _, ok := c.container[i]; !ok {
-				string := fmt.Sprintf("%v has: %v\n", c, c.container[i].Name)
-				stringList = append(stringList, string)
+				line = fmt.Sprintf("%v has: %v\n", c.container[i].Cluster, c.container[i].Name)
+				fmt.Printf("%v\n", line)
 			} else if l[0].container[i].Name != c.container[i].Name {
-				string := fmt.Sprintf("%v has: %v\n", c, c.container[i].Name)
-				stringList = append(stringList, string)
+				line = fmt.Sprintf("%v has: %v\n", c.container[i].Cluster, c.container[i].Name)
+				fmt.Printf("%v\n", line)
 			}
+			stringList = append(stringList, line)
 		}
 		t.AppendRows([]table.Row{
-			{index, i, strings.Join(stringList, ""), "🥹"},
+			{index, i, strings.Join(stringList, "\n"), "🥹"},
 		})
 	}
-	// t.Render()
+	t.Render()
 }
 
 func main() {
