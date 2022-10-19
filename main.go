@@ -232,11 +232,11 @@ func compareComponents(n string, clusters ...string) {
 		}
 		if flag {
 			t.AppendRows([]table.Row{
-				{index, i, strings.Join(stringList, "\n"), "N"},
+				{index, i, strings.Join(stringList, "\n"), "💀"},
 			})
 		} else {
 			t.AppendRows([]table.Row{
-				{index, i, strings.Join(stringList, "\n"), "Y"},
+				{index, i, strings.Join(stringList, "\n"), "😄"},
 			})
 		}
 		t.AppendSeparator()
@@ -245,5 +245,5 @@ func compareComponents(n string, clusters ...string) {
 }
 
 func main() {
-	compareComponents("pod", "minikube", "test1")
+	compareComponents("pod", "minikube", "test1", "test2")
 }
