@@ -128,14 +128,24 @@ func getDeployment(cluster string) ContainerList {
 				m := regexp.MustCompile("^registry.+net/")
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
-				fmt.Printf("%v, %v, %v\n", rs[1], rs[2], rs[3])
-				cl.container[containerName] = ContainerInfo{
-					Name:      m.ReplaceAllString(imageName, ""),
-					Namespace: ns,
-					Cluster:   cluster,
-					Registry:  rs[1],
-					Image:     rs[2],
-					Version:   rs[3],
+				if len(rs) < 3 {
+					cl.container[containerName] = ContainerInfo{
+						Name:      imageName,
+						Namespace: ns,
+						Cluster:   cluster,
+						Registry:  "",
+						Image:     imageName,
+						Version:   "",
+					}
+				} else {
+					cl.container[containerName] = ContainerInfo{
+						Name:      m.ReplaceAllString(imageName, ""),
+						Namespace: ns,
+						Cluster:   cluster,
+						Registry:  rs[1],
+						Image:     rs[2],
+						Version:   rs[3],
+					}
 				}
 			}
 		}
@@ -158,18 +168,31 @@ func getPod(cluster string) ContainerList {
 		}
 		for _, d := range resource.Items {
 			for _, c := range d.Spec.Containers {
+				fmt.Printf("%v", c.Image)
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
-				cl.container[containerName] = ContainerInfo{
-					Name:      m.ReplaceAllString(imageName, ""),
-					Namespace: ns,
-					Cluster:   cluster,
-					Registry:  rs[1],
-					Image:     rs[2],
-					Version:   rs[3],
+				fmt.Printf("result: %v\n", cluster)
+				if len(rs) < 3 {
+					cl.container[containerName] = ContainerInfo{
+						Name:      imageName,
+						Namespace: ns,
+						Cluster:   cluster,
+						Registry:  "",
+						Image:     imageName,
+						Version:   "",
+					}
+				} else {
+					cl.container[containerName] = ContainerInfo{
+						Name:      m.ReplaceAllString(imageName, ""),
+						Namespace: ns,
+						Cluster:   cluster,
+						Registry:  rs[1],
+						Image:     rs[2],
+						Version:   rs[3],
+					}
 				}
 			}
 		}
@@ -222,7 +245,9 @@ func compareComponents(n string, clusters ...string) {
 		var line string
 		var flag bool
 		for _, c := range l {
-			line = fmt.Sprintf("%v:\nimage: %v\nversion: %v", c.container[i].Cluster, c.container[i].Image, c.container[i].Version)
+			if c.container[i].Cluster != "" {
+				line = fmt.Sprintf("%v:\nimage: %v\nversion: %v", c.container[i].Cluster, c.container[i].Image, c.container[i].Version)
+			}
 			if _, ok := c.container[i]; !ok {
 				flag = true
 			} else if l[0].container[i].Name != c.container[i].Name {
@@ -245,5 +270,5 @@ func compareComponents(n string, clusters ...string) {
 }
 
 func main() {
-	compareComponents("pod", "minikube", "test1", "test2")
+	compareComponents("pod", "test1", "test2")
 }
