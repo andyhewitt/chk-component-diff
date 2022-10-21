@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	"github.com/jedib0t/go-pretty/v6/table"
+
 	//
 	// Uncomment to load all auth plugins
 	// _ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -96,21 +96,24 @@ func getConfigFromConfig(context, kubeconfigPath string) string {
 }
 
 type ContainerList struct {
-	container map[string]ContainerInfo
+	Container map[string]ContainerInfo
+}
+
+type ClusterContainers struct {
+	Clusters map[string]ContainerList
 }
 
 type ContainerInfo struct {
 	Name      string
 	Namespace string
-	Cluster   string
 	Registry  string
 	Image     string
 	Version   string
 }
 
-func getDeployment(cluster string) ContainerList {
+func getDeployment() ContainerList {
 	cl := ContainerList{
-		container: map[string]ContainerInfo{},
+		Container: map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -129,19 +132,17 @@ func getDeployment(cluster string) ContainerList {
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
-					cl.container[containerName] = ContainerInfo{
+					cl.Container[containerName] = ContainerInfo{
 						Name:      imageName,
 						Namespace: ns,
-						Cluster:   cluster,
 						Registry:  "",
 						Image:     imageName,
 						Version:   "",
 					}
 				} else {
-					cl.container[containerName] = ContainerInfo{
+					cl.Container[containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
-						Cluster:   cluster,
 						Registry:  rs[1],
 						Image:     rs[2],
 						Version:   rs[3],
@@ -153,9 +154,9 @@ func getDeployment(cluster string) ContainerList {
 	return cl
 }
 
-func getPod(cluster string) ContainerList {
+func getPod() ContainerList {
 	cl := ContainerList{
-		container: map[string]ContainerInfo{},
+		Container: map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -174,21 +175,18 @@ func getPod(cluster string) ContainerList {
 				m := regexp.MustCompile("^registry.+net/")
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
-				fmt.Printf("result: %v\n", cluster)
 				if len(rs) < 3 {
-					cl.container[containerName] = ContainerInfo{
+					cl.Container[containerName] = ContainerInfo{
 						Name:      imageName,
 						Namespace: ns,
-						Cluster:   cluster,
 						Registry:  "",
 						Image:     imageName,
 						Version:   "",
 					}
 				} else {
-					cl.container[containerName] = ContainerInfo{
+					cl.Container[containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
-						Cluster:   cluster,
 						Registry:  rs[1],
 						Image:     rs[2],
 						Version:   rs[3],
@@ -201,7 +199,9 @@ func getPod(cluster string) ContainerList {
 }
 
 func compareComponents(n string, clusters ...string) {
-	var l []ContainerList
+	l := ClusterContainers{
+		Clusters: map[string]ContainerList{},
+	}
 
 	var currentcontext string
 	set := make(map[string]bool)
@@ -211,61 +211,86 @@ func compareComponents(n string, clusters ...string) {
 		for _, c := range clusters {
 			currentcontext = getConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
-			list := getDeployment(currentcontext)
-			for i := range list.container {
+			list := getDeployment()
+			for i := range list.Container {
 				if !set[i] {
 					set[i] = true
 				}
 			}
-			l = append(l, list)
+			l.Clusters[currentcontext] = list
 		}
 	case "pod":
 		for _, c := range clusters {
 			currentcontext = getConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
-			list := getPod(currentcontext)
-			for i := range list.container {
+			list := getPod()
+			for i := range list.Container {
 				if !set[i] {
 					set[i] = true
 				}
 			}
-			l = append(l, list)
+			l.Clusters[currentcontext] = list
 		}
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "Resource", "Summary", "Status"})
+	t.AppendHeader(table.Row{"#", "Resource", "Cluster", "Summary", "Status"})
 
 	var index = 0
 
 	for i := range set {
 		index = index + 1
-		var stringList []string
-		var line string
+		// var stringList []string
+		// var line string
 		var flag bool
-		for _, c := range l {
-			if c.container[i].Cluster != "" {
-				line = fmt.Sprintf("%v:\nimage: %v\nversion: %v", c.container[i].Cluster, c.container[i].Image, c.container[i].Version)
-			}
-			if _, ok := c.container[i]; !ok {
-				flag = true
-			} else if l[0].container[i].Name != c.container[i].Name {
-				flag = true
-			}
-			stringList = append(stringList, line)
-		}
-		if flag {
+		lastIndex := len(l.Clusters)
+		keys := make([]string, 0, len(l.Clusters))
+		count := 0
+		for c, cl := range l.Clusters {
+			count++
+			keys = append(keys, c)
+			line := fmt.Sprintf("image: %v\nversion: %v", cl.Container[i].Image, cl.Container[i].Version)
 			t.AppendRows([]table.Row{
-				{index, i, strings.Join(stringList, "\n"), "💀"},
+				{index, i, c, line, ""},
 			})
-		} else {
-			t.AppendRows([]table.Row{
-				{index, i, strings.Join(stringList, "\n"), "😄"},
-			})
+			if count == lastIndex {
+				if flag {
+					t.AppendRows([]table.Row{
+						{index, i, "", "", "💀"},
+					})
+				} else {
+					t.AppendRows([]table.Row{
+						{index, i, "", "", "😄"},
+					})
+				}
+			}
+			t.AppendSeparator()
+			if _, ok := cl.Container[i]; !ok {
+				flag = true
+			} else if l.Clusters[keys[0]].Container[i].Name != cl.Container[i].Name {
+				flag = true
+			}
+			// stringList = append(stringList, line)
 		}
-		t.AppendSeparator()
+		// if flag {
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, "", strings.Join(stringList, "\n"), "💀"},
+		// 	})
+		// } else {
+		// 	t.AppendRows([]table.Row{
+		// 		{index, i, "", strings.Join(stringList, "\n"), "😄"},
+		// 	})
+		// }
+		// t.AppendSeparator()
 	}
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, AutoMerge: true},
+		{Number: 2, AutoMerge: true},
+		// {Number: 3, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
+		// {Number: 4, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
+		// {Number: 5, AutoMerge: true, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
+	})
 	t.Render()
 }
 
