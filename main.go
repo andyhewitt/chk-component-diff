@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -169,7 +170,6 @@ func getPod() ContainerList {
 		}
 		for _, d := range resource.Items {
 			for _, c := range d.Spec.Containers {
-				fmt.Printf("%v", c.Image)
 				imageName := c.Image
 				containerName := c.Name
 				m := regexp.MustCompile("^registry.+net/")
@@ -235,65 +235,53 @@ func compareComponents(n string, clusters ...string) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "Resource", "Cluster", "Summary", "Status"})
+	tr := table.Row{"#", "Resource"}
+	keys := make([]string, 0, len(l.Clusters))
+	for _, c := range clusters {
+		tr = append(tr, c)
+		keys = append(keys, c)
+	}
+	tr = append(tr, "Status")
+	t.AppendHeader(tr)
 
 	var index = 0
 
 	for i := range set {
+		summary := []string{}
 		index = index + 1
-		// var stringList []string
-		// var line string
+
 		var flag bool
-		lastIndex := len(l.Clusters)
-		keys := make([]string, 0, len(l.Clusters))
 		count := 0
-		for c, cl := range l.Clusters {
+		summary = append(summary, strconv.Itoa(index), i)
+		for j, k := range keys {
+			fmt.Printf("%v, %v\n", j, k)
 			count++
-			keys = append(keys, c)
-			line := fmt.Sprintf("image: %v\nversion: %v", cl.Container[i].Image, cl.Container[i].Version)
-			t.AppendRows([]table.Row{
-				{index, i, c, line, ""},
-			})
-			if count == lastIndex {
-				if flag {
-					t.AppendRows([]table.Row{
-						{index, i, "", "", "💀"},
-					})
-				} else {
-					t.AppendRows([]table.Row{
-						{index, i, "", "", "😄"},
-					})
-				}
-			}
+			summary = append(summary, fmt.Sprintf("image: %v\nversion: %v", l.Clusters[k].Container[i].Image, l.Clusters[k].Container[i].Version))
 			t.AppendSeparator()
-			if _, ok := cl.Container[i]; !ok {
+			if _, ok := l.Clusters[k].Container[i]; !ok {
 				flag = true
-			} else if l.Clusters[keys[0]].Container[i].Name != cl.Container[i].Name {
+			} else if l.Clusters[keys[0]].Container[i].Name != l.Clusters[k].Container[i].Name {
 				flag = true
 			}
-			// stringList = append(stringList, line)
 		}
-		// if flag {
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, "", strings.Join(stringList, "\n"), "💀"},
-		// 	})
-		// } else {
-		// 	t.AppendRows([]table.Row{
-		// 		{index, i, "", strings.Join(stringList, "\n"), "😄"},
-		// 	})
-		// }
-		// t.AppendSeparator()
+
+		if flag {
+			summary = append(summary, "💀")
+		} else {
+			summary = append(summary, "😄")
+		}
+		rest := table.Row{}
+		for _, m := range summary {
+			rest = append(rest, m)
+		}
+		t.AppendRows([]table.Row{
+			rest,
+		})
+		fmt.Printf("%v\n", summary)
 	}
-	t.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 1, AutoMerge: true},
-		{Number: 2, AutoMerge: true},
-		// {Number: 3, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
-		// {Number: 4, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
-		// {Number: 5, AutoMerge: true, Align: text.AlignCenter, AlignFooter: text.AlignCenter, AlignHeader: text.AlignCenter},
-	})
 	t.Render()
 }
 
 func main() {
-	compareComponents("pod", "test1", "test2")
+	compareComponents("pod", "minikube", "test2", "test3")
 }
