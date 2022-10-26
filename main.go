@@ -177,7 +177,7 @@ func getPod() ContainerList {
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
 					cl.Container[containerName] = ContainerInfo{
-						Name:      imageName,
+						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  "",
 						Image:     imageName,
@@ -217,7 +217,7 @@ func compareComponents(n string, clusters ...string) {
 					set[i] = true
 				}
 			}
-			l.Clusters[currentcontext] = list
+			l.Clusters[c] = list
 		}
 	case "pod":
 		for _, c := range clusters {
@@ -229,7 +229,7 @@ func compareComponents(n string, clusters ...string) {
 					set[i] = true
 				}
 			}
-			l.Clusters[currentcontext] = list
+			l.Clusters[c] = list
 		}
 	}
 
