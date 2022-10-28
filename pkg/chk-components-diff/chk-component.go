@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -26,8 +27,10 @@ import (
 )
 
 var (
-	clientSet  *kubernetes.Clientset
-	kubeconfig *string
+	clientSet   *kubernetes.Clientset
+	kubeconfig  *string
+	Clusters    *string
+	Clustersarg []string
 )
 
 func init() {
@@ -36,9 +39,14 @@ func init() {
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
+
+	Clusters = flag.String("c", "", "Provide cluster name you want to check the diff. ( eg. -c=test1,test2 )")
+
 	flag.Parse()
 
-    config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	Clustersarg = strings.Split(*Clusters, ",")
+
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -64,8 +72,6 @@ func switchContext(context string) {
 	}
 }
 
-
-
 type ContainerList struct {
 	Container map[string]ContainerInfo
 }
@@ -81,8 +87,6 @@ type ContainerInfo struct {
 	Image     string
 	Version   string
 }
-
-
 
 func GetNodes() {
 

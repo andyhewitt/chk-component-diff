@@ -17,6 +17,6 @@ package main
 import chk_components "github.com/andyhewitt/chk-component-diff/pkg/chk-components-diff"
 
 func main() {
-    // chk_components.GetNodes()
-    chk_components.CompareComponents("deployment", "test1")
+	// chk_components.GetNodes()
+	chk_components.CompareComponents("deployment", chk_components.Clustersarg...)
 }
