@@ -7,9 +7,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetDeployment() ContainerList {
-	cl := ContainerList{
-		Container: map[string]ContainerInfo{},
+type ResourceList struct {
+	Resource map[string]ContainerInfo
+}
+
+type ClusterContainers struct {
+	Clusters map[string]ResourceList
+}
+
+type ContainerInfo struct {
+	Name      string
+	Namespace string
+	Registry  string
+	Image     string
+	Version   string
+}
+
+func GetDeployment() ResourceList {
+	cl := ResourceList{
+		Resource: map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -28,7 +44,7 @@ func GetDeployment() ContainerList {
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
-					cl.Container[containerName] = ContainerInfo{
+					cl.Resource[containerName] = ContainerInfo{
 						Name:      imageName,
 						Namespace: ns,
 						Registry:  "",
@@ -36,7 +52,7 @@ func GetDeployment() ContainerList {
 						Version:   "",
 					}
 				} else {
-					cl.Container[containerName] = ContainerInfo{
+					cl.Resource[containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  rs[1],
@@ -50,9 +66,9 @@ func GetDeployment() ContainerList {
 	return cl
 }
 
-func GetPod() ContainerList {
-	cl := ContainerList{
-		Container: map[string]ContainerInfo{},
+func GetPod() ResourceList {
+	cl := ResourceList{
+		Resource: map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -71,7 +87,7 @@ func GetPod() ContainerList {
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
-					cl.Container[containerName] = ContainerInfo{
+					cl.Resource[containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  "",
@@ -79,7 +95,7 @@ func GetPod() ContainerList {
 						Version:   "",
 					}
 				} else {
-					cl.Container[containerName] = ContainerInfo{
+					cl.Resource[containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  rs[1],

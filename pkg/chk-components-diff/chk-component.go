@@ -72,22 +72,6 @@ func switchContext(context string) {
 	}
 }
 
-type ContainerList struct {
-	Container map[string]ContainerInfo
-}
-
-type ClusterContainers struct {
-	Clusters map[string]ContainerList
-}
-
-type ContainerInfo struct {
-	Name      string
-	Namespace string
-	Registry  string
-	Image     string
-	Version   string
-}
-
 func GetNodes() {
 
 	resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
@@ -103,7 +87,7 @@ func GetNodes() {
 
 func CompareComponents(n string, clusters ...string) {
 	l := ClusterContainers{
-		Clusters: map[string]ContainerList{},
+		Clusters: map[string]ResourceList{},
 	}
 
 	var currentcontext string
@@ -115,7 +99,7 @@ func CompareComponents(n string, clusters ...string) {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
 			list := GetDeployment()
-			for i := range list.Container {
+			for i := range list.Resource {
 				if !set[i] {
 					set[i] = true
 				}
@@ -127,7 +111,7 @@ func CompareComponents(n string, clusters ...string) {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
 			list := GetPod()
-			for i := range list.Container {
+			for i := range list.Resource {
 				if !set[i] {
 					set[i] = true
 				}
@@ -158,11 +142,11 @@ func CompareComponents(n string, clusters ...string) {
 		summary = append(summary, strconv.Itoa(index), i)
 		for _, k := range keys {
 			count++
-			summary = append(summary, fmt.Sprintf("%v\n%v", l.Clusters[k].Container[i].Image, l.Clusters[k].Container[i].Version))
+			summary = append(summary, fmt.Sprintf("%v\n%v", l.Clusters[k].Resource[i].Image, l.Clusters[k].Resource[i].Version))
 			t.AppendSeparator()
-			if _, ok := l.Clusters[k].Container[i]; !ok {
+			if _, ok := l.Clusters[k].Resource[i]; !ok {
 				flag = true
-			} else if l.Clusters[keys[0]].Container[i].Name != l.Clusters[k].Container[i].Name {
+			} else if l.Clusters[keys[0]].Resource[i].Name != l.Clusters[k].Resource[i].Name {
 				flag = true
 			}
 		}
