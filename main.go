@@ -18,5 +18,5 @@ import chk_components "github.com/andyhewitt/chk-component-diff/pkg/chk-componen
 
 func main() {
 	// chk_components.GetNodes()
-	chk_components.CompareComponents("pod", chk_components.Clustersarg...)
+	chk_components.CompareComponents(chk_components.Resourcesarg, chk_components.Clustersarg...)
 }

@@ -2,9 +2,9 @@ package chk_components
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,15 +25,6 @@ type ContainerInfo struct {
 	Version   string
 }
 
-// coredns: {
-//     coredns: {
-//         name: xxx
-//     },
-//     proxy: {
-//         name: xxx
-//     }
-// }
-
 func GetDeployment() ResourceList {
 	cl := ResourceList{
 		Resource: map[string]map[string]ContainerInfo{},
@@ -48,32 +39,59 @@ func GetDeployment() ResourceList {
 			panic(err.Error())
 		}
 		for _, d := range resource.Items {
-            fmt.Printf("%v\n", d.Name)
+            resourceName := d.Name
             cl.Resource[d.Name] = map[string]ContainerInfo{}
-			for _, c := range d.Spec.Template.Spec.Containers {
-				containerName := c.Name
-				imageName := c.Image
-				m := regexp.MustCompile("^registry.+net/")
-				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
-				rs := separateImageRegex.FindStringSubmatch(imageName)
-				if len(rs) < 3 {
-					cl.Resource[d.Name][containerName] = ContainerInfo{
-						Name:      imageName,
-						Namespace: ns,
-						Registry:  "",
-						Image:     imageName,
-						Version:   "",
-					}
-				} else {
-					cl.Resource[d.Name][containerName] = ContainerInfo{
-						Name:      m.ReplaceAllString(imageName, ""),
-						Namespace: ns,
-						Registry:  rs[1],
-						Image:     rs[2],
-						Version:   rs[3],
-					}
-				}
-			}
+            processResource(cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+		}
+	}
+	return cl
+}
+
+func processResource(cl ResourceList,resourceName string, ns string, containers []v1.Container) {
+    for _, c := range containers {
+    containerName := c.Name
+    imageName := c.Image
+    m := regexp.MustCompile("^registry.+net/")
+    separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
+    rs := separateImageRegex.FindStringSubmatch(imageName)
+    if len(rs) < 3 {
+        cl.Resource[resourceName][containerName] = ContainerInfo{
+            Name:      imageName,
+            Namespace: ns,
+            Registry:  "",
+            Image:     imageName,
+            Version:   "",
+        }
+    } else {
+        cl.Resource[resourceName][containerName] = ContainerInfo{
+            Name:      m.ReplaceAllString(imageName, ""),
+            Namespace: ns,
+            Registry:  rs[1],
+            Image:     rs[2],
+            Version:   rs[3],
+        }
+    }
+}
+}
+
+func GetDaemonSets() ResourceList {
+	cl := ResourceList{
+		Resource: map[string]map[string]ContainerInfo{},
+	}
+
+	namespaces := []string{
+		"kube-system",
+	}
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+            // fmt.Printf("%v\n", d.Name)
+            resourceName := d.Name
+            cl.Resource[resourceName] = map[string]ContainerInfo{}
+            processResource(cl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
 	return cl
@@ -94,31 +112,9 @@ func GetPod() ResourceList {
 			panic(err.Error())
 		}
 		for _, d := range resource.Items {
+            resourceName := d.Name
             cl.Resource[d.Name] = map[string]ContainerInfo{}
-			for _, c := range d.Spec.Containers {
-				imageName := c.Image
-				containerName := c.Name
-				m := regexp.MustCompile("^registry.+net/")
-				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
-				rs := separateImageRegex.FindStringSubmatch(imageName)
-				if len(rs) < 3 {
-					cl.Resource[d.Name][containerName] = ContainerInfo{
-						Name:      m.ReplaceAllString(imageName, ""),
-						Namespace: ns,
-						Registry:  "",
-						Image:     imageName,
-						Version:   "",
-					}
-				} else {
-					cl.Resource[d.Name][containerName] = ContainerInfo{
-						Name:      m.ReplaceAllString(imageName, ""),
-						Namespace: ns,
-						Registry:  rs[1],
-						Image:     rs[2],
-						Version:   rs[3],
-					}
-				}
-			}
+            processResource(cl, resourceName, ns, d.Spec.Containers)
 		}
 	}
 	return cl

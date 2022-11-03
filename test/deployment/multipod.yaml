@@ -7,8 +7,8 @@ spec:
   - name: html
     emptyDir: {}
   containers:
-  - name: 1st
-    image: nginx
+  - name: 2nd
+    image: nginx:1.23.2
     volumeMounts:
     - name: html
       mountPath: /usr/share/nginx/html
@@ -19,7 +19,7 @@ spec:
       limits:
         memory: "128Mi"
         cpu: "500m"
-  - name: 2nd
+  - name: 1st
     image: debian
     volumeMounts:
     - name: html

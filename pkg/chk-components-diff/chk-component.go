@@ -2,7 +2,6 @@ package chk_components
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -33,6 +32,8 @@ var (
 	kubeconfig  *string
 	Clusters    *string
 	Clustersarg []string
+    Resources *string
+    Resourcesarg string
 )
 
 func init() {
@@ -43,10 +44,12 @@ func init() {
 	}
 
 	Clusters = flag.String("c", "", "Provide cluster name you want to check the diff. ( eg. -c=test1,test2 )")
+	Resources = flag.String("r", "", "Provide resources type you want to check the diff. ( eg. -r=pod )")
 
 	flag.Parse()
 
 	Clustersarg = strings.Split(*Clusters, ",")
+    Resourcesarg = *Resources
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
@@ -96,7 +99,7 @@ func CompareComponents(n string, clusters ...string) {
 	set := make(map[string]bool)
 
 	switch n {
-	case "deployment":
+	case "deployment","deploy":
 		for _, c := range clusters {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
@@ -108,14 +111,23 @@ func CompareComponents(n string, clusters ...string) {
 			}
 			l.Clusters[c] = list
 		}
-	case "pod":
+	case "daemonset", "ds":
+		for _, c := range clusters {
+			currentcontext = GetConfigFromConfig(c, *kubeconfig)
+			switchContext(currentcontext)
+			list := GetDaemonSets()
+			for i := range list.Resource {
+				if !set[i] {
+					set[i] = true
+				}
+			}
+			l.Clusters[c] = list
+		}
+	case "pod","po":
 		for _, c := range clusters {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
 			list := GetPod()
-            // fmt.Printf("%v", list)
-            // s, _ := json.MarshalIndent(list, "", "\t")
-            // fmt.Print(string(s))
 			for i := range list.Resource {
 				if !set[i] {
 					set[i] = true
@@ -142,43 +154,41 @@ func CompareComponents(n string, clusters ...string) {
 		summary := []string{}
 		index = index + 1
 
-		// var flag bool
+		var flag bool
 		count := 0
 		summary = append(summary, strconv.Itoa(index), i)
+        var imageArray [][]string
 		for _, k := range keys {
 			count++
-            fmt.Printf("%v\n", i)
-            s, _ := json.MarshalIndent(l.Clusters[k].Resource[i], "", "\t")
-            fmt.Print(string(s))
             keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
  
             for _, k := range l.Clusters[k].Resource[i]{
-                keys = append(keys, k.Image)
+                keys = append(keys, k.Name)
             }
             sort.Strings(keys)
-            fmt.Printf("reflect.DeepEqual(p1, p2) : 等価 : %t\n", reflect.DeepEqual(keys, keys))
-			// summary = append(summary, fmt.Sprintf("%v\n%v", l.Clusters[k].Resource[i].Image, l.Clusters[k].Resource[i].Version))
+            imageArray = append(imageArray, keys)
+            // fmt.Printf("reflect.DeepEqual(p1, p2) : 等価 : %t\n", reflect.DeepEqual(keys, keys))
+			summary = append(summary, fmt.Sprintf("%v", strings.Join(keys, "\n")))
 			t.AppendSeparator()
-			// if _, ok := l.Clusters[k].Resource[i]; !ok {
-			// 	flag = true
-			// } else if l.Clusters[keys[0]].Resource[i].Name != l.Clusters[k].Resource[i].Name {
-			// 	flag = true
-			// }
+			if _, ok := l.Clusters[k].Resource[i]; !ok {
+				flag = true
+			} else if !reflect.DeepEqual(imageArray[0], keys) {
+				flag = true
+			}
 		}
 
-		// if flag {
-		// 	summary = append(summary, "💀")
-		// } else {
-		// 	summary = append(summary, "😄")
-		// }
-		// rest := table.Row{}
-		// for _, m := range summary {
-		// 	rest = append(rest, m)
-		// }
-		// t.AppendRows([]table.Row{
-		// 	rest,
-		// })
-		// fmt.Printf("%v\n", summary)
+		if flag {
+			summary = append(summary, "💀")
+		} else {
+			summary = append(summary, "😄")
+		}
+		rest := table.Row{}
+		for _, m := range summary {
+			rest = append(rest, m)
+		}
+		t.AppendRows([]table.Row{
+			rest,
+		})
 	}
-	// t.Render()
+	t.Render()
 }
