@@ -2,19 +2,21 @@ package chk_components
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-
-	"github.com/jedib0t/go-pretty/v6/table"
 
 	//
 	// Uncomment to load all auth plugins
@@ -111,6 +113,9 @@ func CompareComponents(n string, clusters ...string) {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
 			list := GetPod()
+            // fmt.Printf("%v", list)
+            // s, _ := json.MarshalIndent(list, "", "\t")
+            // fmt.Print(string(s))
 			for i := range list.Resource {
 				if !set[i] {
 					set[i] = true
@@ -137,33 +142,43 @@ func CompareComponents(n string, clusters ...string) {
 		summary := []string{}
 		index = index + 1
 
-		var flag bool
+		// var flag bool
 		count := 0
 		summary = append(summary, strconv.Itoa(index), i)
 		for _, k := range keys {
 			count++
-			summary = append(summary, fmt.Sprintf("%v\n%v", l.Clusters[k].Resource[i].Image, l.Clusters[k].Resource[i].Version))
+            fmt.Printf("%v\n", i)
+            s, _ := json.MarshalIndent(l.Clusters[k].Resource[i], "", "\t")
+            fmt.Print(string(s))
+            keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
+ 
+            for _, k := range l.Clusters[k].Resource[i]{
+                keys = append(keys, k.Image)
+            }
+            sort.Strings(keys)
+            fmt.Printf("reflect.DeepEqual(p1, p2) : 等価 : %t\n", reflect.DeepEqual(keys, keys))
+			// summary = append(summary, fmt.Sprintf("%v\n%v", l.Clusters[k].Resource[i].Image, l.Clusters[k].Resource[i].Version))
 			t.AppendSeparator()
-			if _, ok := l.Clusters[k].Resource[i]; !ok {
-				flag = true
-			} else if l.Clusters[keys[0]].Resource[i].Name != l.Clusters[k].Resource[i].Name {
-				flag = true
-			}
+			// if _, ok := l.Clusters[k].Resource[i]; !ok {
+			// 	flag = true
+			// } else if l.Clusters[keys[0]].Resource[i].Name != l.Clusters[k].Resource[i].Name {
+			// 	flag = true
+			// }
 		}
 
-		if flag {
-			summary = append(summary, "💀")
-		} else {
-			summary = append(summary, "😄")
-		}
-		rest := table.Row{}
-		for _, m := range summary {
-			rest = append(rest, m)
-		}
-		t.AppendRows([]table.Row{
-			rest,
-		})
+		// if flag {
+		// 	summary = append(summary, "💀")
+		// } else {
+		// 	summary = append(summary, "😄")
+		// }
+		// rest := table.Row{}
+		// for _, m := range summary {
+		// 	rest = append(rest, m)
+		// }
+		// t.AppendRows([]table.Row{
+		// 	rest,
+		// })
 		// fmt.Printf("%v\n", summary)
 	}
-	t.Render()
+	// t.Render()
 }

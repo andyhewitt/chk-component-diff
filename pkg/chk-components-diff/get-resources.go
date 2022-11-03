@@ -2,13 +2,15 @@ package chk_components
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+
 type ResourceList struct {
-	Resource map[string]ContainerInfo
+	Resource map[string]map[string]ContainerInfo
 }
 
 type ClusterContainers struct {
@@ -23,9 +25,18 @@ type ContainerInfo struct {
 	Version   string
 }
 
+// coredns: {
+//     coredns: {
+//         name: xxx
+//     },
+//     proxy: {
+//         name: xxx
+//     }
+// }
+
 func GetDeployment() ResourceList {
 	cl := ResourceList{
-		Resource: map[string]ContainerInfo{},
+		Resource: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
@@ -37,14 +48,16 @@ func GetDeployment() ResourceList {
 			panic(err.Error())
 		}
 		for _, d := range resource.Items {
+            fmt.Printf("%v\n", d.Name)
+            cl.Resource[d.Name] = map[string]ContainerInfo{}
 			for _, c := range d.Spec.Template.Spec.Containers {
-				imageName := c.Image
 				containerName := c.Name
+				imageName := c.Image
 				m := regexp.MustCompile("^registry.+net/")
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
-					cl.Resource[containerName] = ContainerInfo{
+					cl.Resource[d.Name][containerName] = ContainerInfo{
 						Name:      imageName,
 						Namespace: ns,
 						Registry:  "",
@@ -52,7 +65,7 @@ func GetDeployment() ResourceList {
 						Version:   "",
 					}
 				} else {
-					cl.Resource[containerName] = ContainerInfo{
+					cl.Resource[d.Name][containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  rs[1],
@@ -68,11 +81,12 @@ func GetDeployment() ResourceList {
 
 func GetPod() ResourceList {
 	cl := ResourceList{
-		Resource: map[string]ContainerInfo{},
+		Resource: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
-		"kube-system",
+		// "kube-system",
+        "default",
 	}
 	for _, ns := range namespaces {
 		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
@@ -80,6 +94,7 @@ func GetPod() ResourceList {
 			panic(err.Error())
 		}
 		for _, d := range resource.Items {
+            cl.Resource[d.Name] = map[string]ContainerInfo{}
 			for _, c := range d.Spec.Containers {
 				imageName := c.Image
 				containerName := c.Name
@@ -87,7 +102,7 @@ func GetPod() ResourceList {
 				separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 				rs := separateImageRegex.FindStringSubmatch(imageName)
 				if len(rs) < 3 {
-					cl.Resource[containerName] = ContainerInfo{
+					cl.Resource[d.Name][containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  "",
@@ -95,7 +110,7 @@ func GetPod() ResourceList {
 						Version:   "",
 					}
 				} else {
-					cl.Resource[containerName] = ContainerInfo{
+					cl.Resource[d.Name][containerName] = ContainerInfo{
 						Name:      m.ReplaceAllString(imageName, ""),
 						Namespace: ns,
 						Registry:  rs[1],
