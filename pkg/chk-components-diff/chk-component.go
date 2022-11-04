@@ -28,12 +28,12 @@ import (
 )
 
 var (
-	clientSet   *kubernetes.Clientset
-	kubeconfig  *string
-	Clusters    *string
-	Clustersarg []string
-    Resources *string
-    Resourcesarg string
+	clientSet    *kubernetes.Clientset
+	kubeconfig   *string
+	Clusters     *string
+	Clustersarg  []string
+	Resources    *string
+	Resourcesarg string
 )
 
 func init() {
@@ -49,7 +49,7 @@ func init() {
 	flag.Parse()
 
 	Clustersarg = strings.Split(*Clusters, ",")
-    Resourcesarg = *Resources
+	Resourcesarg = *Resources
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
@@ -90,6 +90,27 @@ func GetNodes() {
 	}
 }
 
+func splitStrings(name string) string {
+	var splitLines []string
+	strLength := len(name) - 1
+	gap := 30
+	if strLength <= gap {
+		return name
+	}
+	start := 0
+	end := start + gap
+	for ; end < strLength; start = start + gap {
+		if start+gap < strLength {
+			end = start + gap
+		} else {
+			end = strLength + 1
+		}
+		l := name[start:end]
+		splitLines = append(splitLines, l)
+	}
+	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
+}
+
 func CompareComponents(n string, clusters ...string) {
 	l := ClusterContainers{
 		Clusters: map[string]ResourceList{},
@@ -99,7 +120,7 @@ func CompareComponents(n string, clusters ...string) {
 	set := make(map[string]bool)
 
 	switch n {
-	case "deployment","deploy":
+	case "deployment", "deploy":
 		for _, c := range clusters {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
@@ -123,7 +144,7 @@ func CompareComponents(n string, clusters ...string) {
 			}
 			l.Clusters[c] = list
 		}
-	case "pod","po":
+	case "pod", "po":
 		for _, c := range clusters {
 			currentcontext = GetConfigFromConfig(c, *kubeconfig)
 			switchContext(currentcontext)
@@ -156,18 +177,17 @@ func CompareComponents(n string, clusters ...string) {
 
 		var flag bool
 		count := 0
-		summary = append(summary, strconv.Itoa(index), i)
-        var imageArray [][]string
+		summary = append(summary, strconv.Itoa(index), splitStrings(i))
+		var imageArray [][]string
 		for _, k := range keys {
 			count++
-            keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
- 
-            for _, k := range l.Clusters[k].Resource[i]{
-                keys = append(keys, k.Name)
-            }
-            sort.Strings(keys)
-            imageArray = append(imageArray, keys)
-            // fmt.Printf("reflect.DeepEqual(p1, p2) : 等価 : %t\n", reflect.DeepEqual(keys, keys))
+			keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
+			for _, k := range l.Clusters[k].Resource[i] {
+				keys = append(keys, splitStrings(k.Name))
+			}
+
+			sort.Strings(keys)
+			imageArray = append(imageArray, keys)
 			summary = append(summary, fmt.Sprintf("%v", strings.Join(keys, "\n")))
 			t.AppendSeparator()
 			if _, ok := l.Clusters[k].Resource[i]; !ok {
