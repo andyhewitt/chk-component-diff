@@ -93,19 +93,20 @@ func GetNodes() {
 func splitStrings(name string) string {
 	var splitLines []string
 	strLength := len(name) - 1
-	gap := 30
+	gap := 5
 	if strLength <= gap {
 		return name
 	}
 	start := 0
 	end := start + gap
-	for ; end < strLength; start = start + gap {
+	for end < strLength {
 		if start+gap < strLength {
 			end = start + gap
 		} else {
 			end = strLength + 1
 		}
 		l := name[start:end]
+        start = end
 		splitLines = append(splitLines, l)
 	}
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
