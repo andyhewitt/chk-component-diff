@@ -24,30 +24,7 @@ type ContainerInfo struct {
 	Version   string
 }
 
-func GetDeployment() ResourceList {
-	cl := ResourceList{
-		Resource: map[string]map[string]ContainerInfo{},
-	}
-
-	namespaces := []string{
-		// "kube-system",
-		"caas-system",
-	}
-	for _, ns := range namespaces {
-		resource, err := clientSet.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			panic(err.Error())
-		}
-		for _, d := range resource.Items {
-			resourceName := d.Name
-			cl.Resource[d.Name] = map[string]ContainerInfo{}
-			processResource(cl, resourceName, ns, d.Spec.Template.Spec.Containers)
-		}
-	}
-	return cl
-}
-
-func processResource(cl ResourceList, resourceName string, ns string, containers []v1.Container) {
+func processResource(cl *ResourceList, resourceName string, ns string, containers []v1.Container) {
 	for _, c := range containers {
 		containerName := c.Name
 		imageName := c.Image
@@ -74,13 +51,37 @@ func processResource(cl ResourceList, resourceName string, ns string, containers
 	}
 }
 
-func GetDaemonSets() ResourceList {
+func GetDeployment() ResourceList {
 	cl := ResourceList{
 		Resource: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
 		"kube-system",
+		"caas-system",
+	}
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			resourceName := d.Name
+			cl.Resource[d.Name] = map[string]ContainerInfo{}
+			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+		}
+	}
+	return cl
+}
+
+func GetDaemonSets() ResourceList {
+	cl := ResourceList{
+		Resource: map[string]map[string]ContainerInfo{},
+	}
+
+	namespaces := []string{
+        "kube-system",
+        "caas-system",
 	}
 	for _, ns := range namespaces {
 		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
@@ -91,19 +92,21 @@ func GetDaemonSets() ResourceList {
 			// fmt.Printf("%v\n", d.Name)
 			resourceName := d.Name
 			cl.Resource[resourceName] = map[string]ContainerInfo{}
-			processResource(cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
 	return cl
 }
 
 func GetPod() ResourceList {
+	// cl := ResourceList{}
 	cl := ResourceList{
 		Resource: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := []string{
-		// "kube-system",
+        "kube-system",
+		"caas-system",
 		"default",
 	}
 	for _, ns := range namespaces {
@@ -114,7 +117,7 @@ func GetPod() ResourceList {
 		for _, d := range resource.Items {
 			resourceName := d.Name
 			cl.Resource[d.Name] = map[string]ContainerInfo{}
-			processResource(cl, resourceName, ns, d.Spec.Containers)
+			processResource(&cl, resourceName, ns, d.Spec.Containers)
 		}
 	}
 	return cl

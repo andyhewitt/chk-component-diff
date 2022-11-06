@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -28,11 +27,11 @@ import (
 )
 
 var (
-	clientSet    *kubernetes.Clientset
-	kubeconfig   *string
-	Clusters     *string
-	Clustersarg  []string
-	Resources    *string
+	clientSet  *kubernetes.Clientset
+	kubeconfig *string
+	// Clusters     *string
+	Clustersarg []string
+	// Resources    *string
 	Resourcesarg string
 )
 
@@ -43,8 +42,8 @@ func init() {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 
-	Clusters = flag.String("c", "", "Provide cluster name you want to check the diff. ( eg. -c=test1,test2 )")
-	Resources = flag.String("r", "", "Provide resources type you want to check the diff. ( eg. -r=pod )")
+	Clusters := flag.String("c", "", "Provide cluster name you want to check the diff. ( eg. -c=test1,test2 )")
+	Resources := flag.String("r", "", "Provide resources type you want to check the diff. ( eg. -r=pod )")
 
 	flag.Parse()
 
@@ -93,7 +92,7 @@ func GetNodes() {
 func splitStrings(name string) string {
 	var splitLines []string
 	strLength := len(name) - 1
-	gap := 5
+	gap := 30
 	if strLength <= gap {
 		return name
 	}
@@ -106,10 +105,26 @@ func splitStrings(name string) string {
 			end = strLength + 1
 		}
 		l := name[start:end]
-        start = end
+		start = end
 		splitLines = append(splitLines, l)
 	}
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
+}
+
+func processResourceList(set map[string]bool, l *ClusterContainers, clusters ...string) (map[string]bool, ClusterContainers) {
+	var currentcontext string
+	for _, c := range clusters {
+		currentcontext = GetConfigFromConfig(c, *kubeconfig)
+		switchContext(currentcontext)
+		list := GetDeployment()
+		for i := range list.Resource {
+			if !set[i] {
+				set[i] = true
+			}
+		}
+		l.Clusters[c] = list
+	}
+	return set, *l
 }
 
 func CompareComponents(n string, clusters ...string) {
@@ -117,51 +132,31 @@ func CompareComponents(n string, clusters ...string) {
 		Clusters: map[string]ResourceList{},
 	}
 
-	var currentcontext string
-	set := make(map[string]bool)
+	var set = make(map[string]bool)
 
 	switch n {
 	case "deployment", "deploy":
-		for _, c := range clusters {
-			currentcontext = GetConfigFromConfig(c, *kubeconfig)
-			switchContext(currentcontext)
-			list := GetDeployment()
-			for i := range list.Resource {
-				if !set[i] {
-					set[i] = true
-				}
-			}
-			l.Clusters[c] = list
-		}
+		set, l = processResourceList(set, &l, clusters...)
 	case "daemonset", "ds":
-		for _, c := range clusters {
-			currentcontext = GetConfigFromConfig(c, *kubeconfig)
-			switchContext(currentcontext)
-			list := GetDaemonSets()
-			for i := range list.Resource {
-				if !set[i] {
-					set[i] = true
-				}
-			}
-			l.Clusters[c] = list
-		}
+		set, l = processResourceList(set, &l, clusters...)
 	case "pod", "po":
-		for _, c := range clusters {
-			currentcontext = GetConfigFromConfig(c, *kubeconfig)
-			switchContext(currentcontext)
-			list := GetPod()
-			for i := range list.Resource {
-				if !set[i] {
-					set[i] = true
-				}
-			}
-			l.Clusters[c] = list
-		}
+		set, l = processResourceList(set, &l, clusters...)
+		// for _, c := range clusters {
+		// 	currentcontext = GetConfigFromConfig(c, *kubeconfig)
+		// 	switchContext(currentcontext)
+		// 	list := GetPod()
+		// 	for i := range list.Resource {
+		// 		if !set[i] {
+		// 			set[i] = true
+		// 		}
+		// 	}
+		// 	l.Clusters[c] = list
+		// }
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	tr := table.Row{"#", "Resource"}
+	tr := table.Row{"Resource"}
 	keys := make([]string, 0, len(l.Clusters))
 	for _, c := range clusters {
 		tr = append(tr, c)
@@ -170,15 +165,12 @@ func CompareComponents(n string, clusters ...string) {
 	tr = append(tr, "Status")
 	t.AppendHeader(tr)
 
-	var index = 0
-
 	for i := range set {
 		summary := []string{}
-		index = index + 1
 
 		var flag bool
 		count := 0
-		summary = append(summary, strconv.Itoa(index), splitStrings(i))
+		summary = append(summary, splitStrings(i))
 		var imageArray [][]string
 		for _, k := range keys {
 			count++
@@ -211,5 +203,9 @@ func CompareComponents(n string, clusters ...string) {
 			rest,
 		})
 	}
+	t.SetAutoIndex(true)
+	t.SortBy([]table.SortBy{
+		{Name: "Resource", Mode: table.Asc},
+	})
 	t.Render()
 }
