@@ -79,14 +79,35 @@ func switchContext(context string) {
 func GetNodes() {
 
 	resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "minikube.k8s.io/name",
+		// LabelSelector: "cluster.aps.cpd.rakuten.com/rackInfo",
 	})
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	tr := table.Row{"Nodes", "Label"}
+	t.AppendHeader(tr)
 	if err != nil {
 		panic(err.Error())
 	}
 	for _, d := range resource.Items {
-		fmt.Printf("%v\n", d)
+		bindingTaint := "Missing"
+		for b := range d.Labels {
+			if b == "cluster.aps.cpd.rakuten.com/rackInfo" {
+				bindingTaint = d.Labels["cluster.aps.cpd.rakuten.com/rackInfo"]
+				break
+			}
+		}
+		// for _, b := range d.Spec.Taints {
+		// 	if b.Key == "network.cpd.rakuten.com/dlb-binding" {
+		// 		bindingTaint = b.Value
+		// 	}
+		// }
+		if bindingTaint == "Missing" {
+			fmt.Printf("%v, %v\n", d.Name, bindingTaint)
+		}
+		// t.AppendRow([]interface{}{d.Name, bindingTaint})
+		// t.AppendSeparator()
 	}
+	// t.Render()
 }
 
 func splitStrings(name string) string {
@@ -111,12 +132,21 @@ func splitStrings(name string) string {
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
 }
 
-func processResourceList(set map[string]bool, l *ClusterContainers, clusters ...string) (map[string]bool, ClusterContainers) {
+func processResourceList(resource string, set map[string]bool, l *ClusterContainers, clusters ...string) (map[string]bool, ClusterContainers) {
 	var currentcontext string
 	for _, c := range clusters {
 		currentcontext = GetConfigFromConfig(c, *kubeconfig)
 		switchContext(currentcontext)
-		list := GetDeployment()
+		var list ResourceList
+		switch resource {
+		case "deployment", "deploy":
+			list = GetDeployment()
+		case "daemonset", "ds":
+			list = GetDaemonSets()
+		case "pod", "po":
+			list = GetPod()
+		}
+		// list := GetDaemonSets()
 		for i := range list.Resource {
 			if !set[i] {
 				set[i] = true
@@ -136,11 +166,11 @@ func CompareComponents(n string, clusters ...string) {
 
 	switch n {
 	case "deployment", "deploy":
-		set, l = processResourceList(set, &l, clusters...)
+		set, l = processResourceList(n, set, &l, clusters...)
 	case "daemonset", "ds":
-		set, l = processResourceList(set, &l, clusters...)
+		set, l = processResourceList(n, set, &l, clusters...)
 	case "pod", "po":
-		set, l = processResourceList(set, &l, clusters...)
+		set, l = processResourceList(n, set, &l, clusters...)
 		// for _, c := range clusters {
 		// 	currentcontext = GetConfigFromConfig(c, *kubeconfig)
 		// 	switchContext(currentcontext)

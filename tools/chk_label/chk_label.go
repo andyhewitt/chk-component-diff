@@ -1,2 +1,0 @@
-package chk_label
-
