@@ -27,12 +27,11 @@ import (
 )
 
 var (
-	clientSet  *kubernetes.Clientset
-	kubeconfig *string
-	// Clusters     *string
-	Clustersarg []string
-	// Resources    *string
-	Resourcesarg string
+	clientSet     *kubernetes.Clientset
+	kubeconfig    *string
+	Clustersarg   []string
+	Namespacesarg []string
+	Resourcesarg  string
 )
 
 func init() {
@@ -42,13 +41,15 @@ func init() {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 
-	Clusters := flag.String("c", "", "Provide cluster name you want to check the diff. ( eg. -c=test1,test2 )")
-	Resources := flag.String("r", "", "Provide resources type you want to check the diff. ( eg. -r=pod )")
+	clusters := flag.String("c", "", "Provide cluster name you want to check. ( eg. -c=test1,test2 )")
+	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=pod )")
+	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
 
 	flag.Parse()
 
-	Clustersarg = strings.Split(*Clusters, ",")
-	Resourcesarg = *Resources
+	Clustersarg = strings.Split(*clusters, ",")
+	Namespacesarg = strings.Split(*namespaces, ",")
+	Resourcesarg = *resources
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
@@ -77,9 +78,8 @@ func switchContext(context string) {
 }
 
 func GetNodes() {
-
 	resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		// LabelSelector: "cluster.aps.cpd.rakuten.com/rackInfo",
+		LabelSelector: "network.cpd.rakuten.com/dlb-binding",
 	})
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -90,24 +90,26 @@ func GetNodes() {
 	}
 	for _, d := range resource.Items {
 		bindingTaint := "Missing"
+		ns := ""
 		for b := range d.Labels {
-			if b == "cluster.aps.cpd.rakuten.com/rackInfo" {
-				bindingTaint = d.Labels["cluster.aps.cpd.rakuten.com/rackInfo"]
+			if b == "network.cpd.rakuten.com/dlb-binding" {
+				bindingTaint = d.Labels["network.cpd.rakuten.com/dlb-binding"]
+				ns = d.Labels["node.aps.cpd.rakuten.com/owner"]
 				break
 			}
 		}
-		// for _, b := range d.Spec.Taints {
-		// 	if b.Key == "network.cpd.rakuten.com/dlb-binding" {
-		// 		bindingTaint = b.Value
-		// 	}
-		// }
+		for _, b := range d.Spec.Taints {
+			if b.Key == "network.cpd.rakuten.com/dlb-binding" {
+				bindingTaint = b.Value
+			}
+		}
 		if bindingTaint == "Missing" {
 			fmt.Printf("%v, %v\n", d.Name, bindingTaint)
 		}
-		// t.AppendRow([]interface{}{d.Name, bindingTaint})
-		// t.AppendSeparator()
+		t.AppendRow([]interface{}{d.Name, ns, bindingTaint})
+		t.AppendSeparator()
 	}
-	// t.Render()
+	t.Render()
 }
 
 func splitStrings(name string) string {
@@ -143,6 +145,8 @@ func processResourceList(resource string, set map[string]bool, l *ClusterContain
 			list = GetDeployment()
 		case "daemonset", "ds":
 			list = GetDaemonSets()
+		case "statefulset", "sts":
+			list = GetStatefulSets()
 		case "pod", "po":
 			list = GetPod()
 		}
@@ -171,17 +175,8 @@ func CompareComponents(n string, clusters ...string) {
 		set, l = processResourceList(n, set, &l, clusters...)
 	case "pod", "po":
 		set, l = processResourceList(n, set, &l, clusters...)
-		// for _, c := range clusters {
-		// 	currentcontext = GetConfigFromConfig(c, *kubeconfig)
-		// 	switchContext(currentcontext)
-		// 	list := GetPod()
-		// 	for i := range list.Resource {
-		// 		if !set[i] {
-		// 			set[i] = true
-		// 		}
-		// 	}
-		// 	l.Clusters[c] = list
-		// }
+	case "statefulset", "sts":
+		set, l = processResourceList(n, set, &l, clusters...)
 	}
 
 	t := table.NewWriter()

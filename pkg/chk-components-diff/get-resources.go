@@ -56,10 +56,7 @@ func GetDeployment() ResourceList {
 		Resource: map[string]map[string]ContainerInfo{},
 	}
 
-	namespaces := []string{
-		"kube-system",
-		"caas-system",
-	}
+	namespaces := Namespacesarg
 	for _, ns := range namespaces {
 		resource, err := clientSet.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
@@ -79,12 +76,30 @@ func GetDaemonSets() ResourceList {
 		Resource: map[string]map[string]ContainerInfo{},
 	}
 
-	namespaces := []string{
-        "kube-system",
-        "caas-system",
-	}
+	namespaces := Namespacesarg
 	for _, ns := range namespaces {
 		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			// fmt.Printf("%v\n", d.Name)
+			resourceName := d.Name
+			cl.Resource[resourceName] = map[string]ContainerInfo{}
+			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+		}
+	}
+	return cl
+}
+
+func GetStatefulSets() ResourceList {
+	cl := ResourceList{
+		Resource: map[string]map[string]ContainerInfo{},
+	}
+
+	namespaces := Namespacesarg
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err.Error())
 		}
@@ -104,11 +119,7 @@ func GetPod() ResourceList {
 		Resource: map[string]map[string]ContainerInfo{},
 	}
 
-	namespaces := []string{
-        "kube-system",
-		"caas-system",
-		"default",
-	}
+	namespaces := Namespacesarg
 	for _, ns := range namespaces {
 		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {

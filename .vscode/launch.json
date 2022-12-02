@@ -12,9 +12,11 @@
 			"program": "${workspaceRoot}",
 			"args": [
 				"-c",
-				"minikube,test1",
+				"jpe2-caas1-prod4",
 				"-r",
-				"po"
+				"deploy",
+				"-n",
+				"kube-system"
 			]
 		}
 	]
