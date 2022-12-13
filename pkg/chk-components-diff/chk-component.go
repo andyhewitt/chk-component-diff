@@ -1,7 +1,6 @@
 package chk_components
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -77,39 +75,16 @@ func switchContext(context string) {
 	}
 }
 
-func GetNodes() {
-	resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "network.cpd.rakuten.com/dlb-binding",
-	})
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	tr := table.Row{"Nodes", "Label"}
-	t.AppendHeader(tr)
-	if err != nil {
-		panic(err.Error())
-	}
-	for _, d := range resource.Items {
-		bindingTaint := "Missing"
-		ns := ""
-		for b := range d.Labels {
-			if b == "network.cpd.rakuten.com/dlb-binding" {
-				bindingTaint = d.Labels["network.cpd.rakuten.com/dlb-binding"]
-				ns = d.Labels["node.aps.cpd.rakuten.com/owner"]
-				break
-			}
-		}
-		for _, b := range d.Spec.Taints {
-			if b.Key == "network.cpd.rakuten.com/dlb-binding" {
-				bindingTaint = b.Value
-			}
-		}
-		if bindingTaint == "Missing" {
-			fmt.Printf("%v, %v\n", d.Name, bindingTaint)
-		}
-		t.AppendRow([]interface{}{d.Name, ns, bindingTaint})
-		t.AppendSeparator()
-	}
-	t.Render()
+type Label struct {
+	LabelName string
+}
+
+type LabelList struct {
+	LabelList []Label
+}
+
+type ClusterLabel struct {
+	Cluster map[string]LabelList
 }
 
 func splitStrings(name string) string {
@@ -194,11 +169,9 @@ func CompareComponents(n string, clusters ...string) {
 		summary := []string{}
 
 		var flag bool
-		count := 0
 		summary = append(summary, splitStrings(i))
 		var imageArray [][]string
 		for _, k := range keys {
-			count++
 			keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
 			for _, k := range l.Clusters[k].Resource[i] {
 				keys = append(keys, splitStrings(k.Name))
