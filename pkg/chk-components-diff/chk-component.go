@@ -157,10 +157,10 @@ func CompareComponents(n string, clusters ...string) {
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	tr := table.Row{"Resource"}
-	keys := make([]string, 0, len(l.Clusters))
+	clusterkeys := make([]string, 0, len(l.Clusters))
 	for _, c := range clusters {
 		tr = append(tr, c)
-		keys = append(keys, c)
+		clusterkeys = append(clusterkeys, c)
 	}
 	tr = append(tr, "Status")
 	t.AppendHeader(tr)
@@ -171,19 +171,19 @@ func CompareComponents(n string, clusters ...string) {
 		var flag bool
 		summary = append(summary, splitStrings(i))
 		var imageArray [][]string
-		for _, k := range keys {
-			keys := make([]string, 0, len(l.Clusters[k].Resource[i]))
+		for _, k := range clusterkeys {
+			imageLists := make([]string, 0, len(l.Clusters[k].Resource[i]))
 			for _, k := range l.Clusters[k].Resource[i] {
-				keys = append(keys, splitStrings(k.Name))
+				imageLists = append(imageLists, splitStrings(k.Name))
 			}
 
-			sort.Strings(keys)
-			imageArray = append(imageArray, keys)
-			summary = append(summary, fmt.Sprintf("%v", strings.Join(keys, "\n")))
+			sort.Strings(imageLists)
+			imageArray = append(imageArray, imageLists)
+			summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
 			t.AppendSeparator()
 			if _, ok := l.Clusters[k].Resource[i]; !ok {
 				flag = true
-			} else if !reflect.DeepEqual(imageArray[0], keys) {
+			} else if !reflect.DeepEqual(imageArray[0], imageLists) {
 				flag = true
 			}
 		}
