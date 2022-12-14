@@ -2,6 +2,7 @@ package chk_components
 
 import (
 	"context"
+	"math/rand"
 	"os"
 
 	//
@@ -37,14 +38,15 @@ func GetNodes(clusters ...string) ClusterLabel {
 		currentcontext = GetConfigFromConfig(c, *kubeconfig)
 		switchContext(currentcontext)
 		resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-			LabelSelector: "node-role.kubernetes.io/master=",
+			// LabelSelector: "node-role.kubernetes.io/master=",
 		})
 		if err != nil {
 			panic(err.Error())
 		}
 		var llist LabelList
-		for _, d := range resource.Items {
-			for b := range d.Labels {
+		if len(resource.Items) != 0 {
+		    randInx := rand.Intn(len(resource.Items))
+			for b := range resource.Items[randInx].Labels {
 				var l = Label{
 					LabelName: b,
 				}
