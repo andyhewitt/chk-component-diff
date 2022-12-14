@@ -2,7 +2,6 @@ package chk_components
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	//
@@ -17,6 +16,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
+
+type Label struct {
+	LabelName string
+}
+
+type LabelList struct {
+	LabelList []Label
+}
+
+type ClusterLabel struct {
+	Cluster map[string]LabelList
+}
 
 func GetNodes(clusters ...string) ClusterLabel {
 	var clusterLabel ClusterLabel
@@ -58,29 +69,28 @@ func CompareLabels(clusters ...string) {
 			}
 		}
 	}
-
+	tr = append(tr, "Item")
 	for _, c := range clusters {
 		tr = append(tr, c)
 	}
-	tr = append(tr, "Status")
 	t.AppendHeader(tr)
 
-	for r := range set {
-		fmt.Printf("%v\n", r)
-		flag := true
+	for item := range set {
 		summary := []string{}
-		for _, l := range labellist.Cluster {
-			for _, list := range l.LabelList {
-				if list.LabelName == r {
-					summary = append(summary, list.LabelName)
+		summary = append(summary, SplitStrings(item, 30))
+		for _, c := range clusters {
+			flag := true
+			for _, l := range labellist.Cluster[c].LabelList {
+				if l.LabelName == item {
 					flag = false
+					break
 				}
 			}
-		}
-		if flag {
-			summary = append(summary, "💀")
-		} else {
-			summary = append(summary, "😄")
+			if flag {
+				summary = append(summary, "💀")
+			} else {
+				summary = append(summary, "😄")
+			}
 		}
 		rest := table.Row{}
 		for _, m := range summary {
@@ -89,6 +99,7 @@ func CompareLabels(clusters ...string) {
 		t.AppendRows([]table.Row{
 			rest,
 		})
+		t.AppendSeparator()
 	}
 	t.SetAutoIndex(true)
 	t.SortBy([]table.SortBy{

@@ -75,22 +75,11 @@ func switchContext(context string) {
 	}
 }
 
-type Label struct {
-	LabelName string
-}
 
-type LabelList struct {
-	LabelList []Label
-}
 
-type ClusterLabel struct {
-	Cluster map[string]LabelList
-}
-
-func splitStrings(name string) string {
+func SplitStrings(name string, gap int) string {
 	var splitLines []string
 	strLength := len(name) - 1
-	gap := 30
 	if strLength <= gap {
 		return name
 	}
@@ -169,12 +158,12 @@ func CompareComponents(n string, clusters ...string) {
 		summary := []string{}
 
 		var flag bool
-		summary = append(summary, splitStrings(i))
+		summary = append(summary, SplitStrings(i, 30))
 		var imageArray [][]string
 		for _, k := range clusterkeys {
 			imageLists := make([]string, 0, len(l.Clusters[k].Resource[i]))
 			for _, k := range l.Clusters[k].Resource[i] {
-				imageLists = append(imageLists, splitStrings(k.Name))
+				imageLists = append(imageLists, SplitStrings(k.Name, 30))
 			}
 
 			sort.Strings(imageLists)
