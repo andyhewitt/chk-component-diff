@@ -30,7 +30,7 @@ type ClusterLabel struct {
 	Cluster map[string]LabelList
 }
 
-func GetNodes(clusters ...string) ClusterLabel {
+func GetNodes(label string, clusters ...string) ClusterLabel {
 	var clusterLabel ClusterLabel
 	clusterLabel.Cluster = map[string]LabelList{}
 	var currentcontext string
@@ -38,14 +38,14 @@ func GetNodes(clusters ...string) ClusterLabel {
 		currentcontext = GetConfigFromConfig(c, *kubeconfig)
 		switchContext(currentcontext)
 		resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-			// LabelSelector: "node-role.kubernetes.io/master=",
+			LabelSelector: label,
 		})
 		if err != nil {
 			panic(err.Error())
 		}
 		var llist LabelList
 		if len(resource.Items) != 0 {
-		    randInx := rand.Intn(len(resource.Items))
+			randInx := rand.Intn(len(resource.Items))
 			for b := range resource.Items[randInx].Labels {
 				var l = Label{
 					LabelName: b,
@@ -58,8 +58,8 @@ func GetNodes(clusters ...string) ClusterLabel {
 	return clusterLabel
 }
 
-func CompareLabels(clusters ...string) {
-	labellist := GetNodes(clusters...)
+func CompareLabels(label string, clusters ...string) {
+	labellist := GetNodes(label, clusters...)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	tr := table.Row{}

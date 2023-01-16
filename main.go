@@ -17,7 +17,7 @@ package main
 import chk_components "github.com/andyhewitt/chk-component-diff/pkg/chk-components-diff"
 
 func main() {
-	chk_components.CompareLabels(chk_components.Clustersarg...)
+	// chk_components.CompareLabels(chk_components.Clustersarg...)
 	// release_test.TestSum()
-	// chk_components.CompareComponents(chk_components.Resourcesarg, chk_components.Clustersarg...)
+	chk_components.CompareComponents(chk_components.Resourcesarg, chk_components.Clustersarg...)
 }
