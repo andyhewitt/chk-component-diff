@@ -1,18 +1,14 @@
 package chk_components
 
 import (
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 
 	//
 	// Uncomment to load all auth plugins
@@ -23,43 +19,6 @@ import (
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
-
-var (
-	clientSet     *kubernetes.Clientset
-	kubeconfig    *string
-	Clustersarg   []string
-	Namespacesarg []string
-	Resourcesarg  string
-)
-
-func init() {
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-
-	clusters := flag.String("c", "", "Provide cluster name you want to check. ( eg. -c=test1,test2 )")
-	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=pod )")
-	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
-
-	flag.Parse()
-
-	Clustersarg = strings.Split(*clusters, ",")
-	Namespacesarg = strings.Split(*namespaces, ",")
-	Resourcesarg = *resources
-
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// create the clientset
-	clientSet, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-}
 
 func switchContext(context string) {
 	// use the current context in kubeconfig
@@ -74,8 +33,6 @@ func switchContext(context string) {
 		panic(err.Error())
 	}
 }
-
-
 
 func SplitStrings(name string, gap int) string {
 	var splitLines []string

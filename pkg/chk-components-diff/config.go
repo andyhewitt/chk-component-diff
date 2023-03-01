@@ -1,12 +1,57 @@
 package chk_components
 
 import (
+	"flag"
 	"fmt"
+	"path/filepath"
 	"regexp"
+	"strings"
 
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
+
+var (
+	clientSet     *kubernetes.Clientset
+	kubeconfig    *string
+	Clustersarg   []string
+	Namespacesarg []string
+	Resourcesarg  string
+	Labelarg      string
+)
+
+func init() {
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+
+	clusters := flag.String("c", "", "Provide cluster name you want to check. ( eg. -c=test1,test2 )")
+	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=pod )")
+	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
+	label := flag.String("l", "", "Provide a label you want to check. ( eg. -l=cluster.aps.cpd.rakuten.com/noderole=master )")
+
+	flag.Parse()
+
+	Clustersarg = strings.Split(*clusters, ",")
+	Namespacesarg = strings.Split(*namespaces, ",")
+	Resourcesarg = *resources
+	Labelarg = *label
+
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// create the clientset
+	clientSet, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+}
 
 func BuildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
