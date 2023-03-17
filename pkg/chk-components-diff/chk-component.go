@@ -74,7 +74,7 @@ func processResourceList(resource string, set map[string]bool, l *ClusterContain
 			list = GetPod()
 		}
 		// list := GetDaemonSets()
-		for i := range list.Resource {
+		for i := range list.ResourceName {
 			if !set[i] {
 				set[i] = true
 			}
@@ -120,8 +120,8 @@ func CompareComponents(n string, clusters ...string) {
 		summary = append(summary, SplitStrings(i, 30))
 		var imageArray [][]string
 		for _, k := range clusterkeys {
-			imageLists := make([]string, 0, len(l.Clusters[k].Resource[i]))
-			for _, k := range l.Clusters[k].Resource[i] {
+			imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
+			for _, k := range l.Clusters[k].ResourceName[i] {
 				imageLists = append(imageLists, SplitStrings(k.Name, 30))
 			}
 
@@ -129,7 +129,7 @@ func CompareComponents(n string, clusters ...string) {
 			imageArray = append(imageArray, imageLists)
 			summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
 			t.AppendSeparator()
-			if _, ok := l.Clusters[k].Resource[i]; !ok {
+			if _, ok := l.Clusters[k].ResourceName[i]; !ok {
 				flag = true
 			} else if !reflect.DeepEqual(imageArray[0], imageLists) {
 				flag = true

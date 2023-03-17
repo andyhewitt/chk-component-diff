@@ -2,19 +2,14 @@ package chk_components
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"regexp"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ResourceList struct {
-	Resource map[string]map[string]ContainerInfo
-}
-
-type ClusterContainers struct {
-	Clusters map[string]ResourceList
-}
 
 type ContainerInfo struct {
 	Name      string
@@ -24,7 +19,20 @@ type ContainerInfo struct {
 	Version   string
 }
 
-func processResource(cl *ResourceList, resourceName string, ns string, containers []v1.Container) {
+type ResourceType struct {
+	Resource string
+}
+
+type ResourceList struct {
+	ResourceName map[string]map[string]ContainerInfo
+}
+
+type ClusterContainers struct {
+	Clusters map[string]ResourceList
+}
+
+
+func processResource(cl *ResourceList, name string, ns string, containers []v1.Container) {
 	for _, c := range containers {
 		containerName := c.Name
 		imageName := c.Image
@@ -32,7 +40,7 @@ func processResource(cl *ResourceList, resourceName string, ns string, container
 		separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 		rs := separateImageRegex.FindStringSubmatch(imageName)
 		if len(rs) < 3 {
-			cl.Resource[resourceName][containerName] = ContainerInfo{
+			cl.ResourceName[name][containerName] = ContainerInfo{
 				Name:      imageName,
 				Namespace: ns,
 				Registry:  "",
@@ -40,7 +48,7 @@ func processResource(cl *ResourceList, resourceName string, ns string, container
 				Version:   "",
 			}
 		} else {
-			cl.Resource[resourceName][containerName] = ContainerInfo{
+			cl.ResourceName[name][containerName] = ContainerInfo{
 				Name:      m.ReplaceAllString(imageName, ""),
 				Namespace: ns,
 				Registry:  rs[1],
@@ -53,7 +61,7 @@ func processResource(cl *ResourceList, resourceName string, ns string, container
 
 func GetDeployment() ResourceList {
 	cl := ResourceList{
-		Resource: map[string]map[string]ContainerInfo{},
+		ResourceName: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := Namespacesarg
@@ -64,16 +72,22 @@ func GetDeployment() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
-			cl.Resource[d.Name] = map[string]ContainerInfo{}
+			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
 			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
+	
+    b, err := json.MarshalIndent(cl, "", "    ")
+    if err != nil {
+        fmt.Println("Error:", err)
+    }
+    fmt.Println(string(b))
 	return cl
 }
 
 func GetDaemonSets() ResourceList {
 	cl := ResourceList{
-		Resource: map[string]map[string]ContainerInfo{},
+		ResourceName: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := Namespacesarg
@@ -84,9 +98,9 @@ func GetDaemonSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			// fmt.Printf("%v\n", d.Name)
-			resourceName := d.Name
-			cl.Resource[resourceName] = map[string]ContainerInfo{}
-			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+			name := d.Name
+			cl.ResourceName[name] = map[string]ContainerInfo{}
+			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
 	return cl
@@ -94,7 +108,7 @@ func GetDaemonSets() ResourceList {
 
 func GetStatefulSets() ResourceList {
 	cl := ResourceList{
-		Resource: map[string]map[string]ContainerInfo{},
+		ResourceName: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := Namespacesarg
@@ -105,9 +119,9 @@ func GetStatefulSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			// fmt.Printf("%v\n", d.Name)
-			resourceName := d.Name
-			cl.Resource[resourceName] = map[string]ContainerInfo{}
-			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
+			name := d.Name
+			cl.ResourceName[name] = map[string]ContainerInfo{}
+			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
 	return cl
@@ -116,7 +130,7 @@ func GetStatefulSets() ResourceList {
 func GetPod() ResourceList {
 	// cl := ResourceList{}
 	cl := ResourceList{
-		Resource: map[string]map[string]ContainerInfo{},
+		ResourceName: map[string]map[string]ContainerInfo{},
 	}
 
 	namespaces := Namespacesarg
@@ -126,10 +140,16 @@ func GetPod() ResourceList {
 			panic(err.Error())
 		}
 		for _, d := range resource.Items {
-			resourceName := d.Name
-			cl.Resource[d.Name] = map[string]ContainerInfo{}
-			processResource(&cl, resourceName, ns, d.Spec.Containers)
+			name := d.Name
+			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
+			processResource(&cl, name, ns, d.Spec.Containers)
 		}
 	}
+
+	b, err := json.MarshalIndent(cl, "", "    ")
+    if err != nil {
+        fmt.Println("Error:", err)
+    }
+    fmt.Println(string(b))
 	return cl
 }
