@@ -20,7 +20,7 @@ type ContainerInfo struct {
 }
 
 type ResourceType struct {
-	Resource string
+	Resource map[string]ResourceList
 }
 
 type ResourceList struct {
@@ -28,7 +28,7 @@ type ResourceList struct {
 }
 
 type ClusterContainers struct {
-	Clusters map[string]ResourceList
+	Clusters map[string]ResourceType
 }
 
 

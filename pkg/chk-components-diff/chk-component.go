@@ -1,13 +1,10 @@
 package chk_components
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"reflect"
-	"sort"
 	"strings"
 
-	"github.com/jedib0t/go-pretty/v6/table"
 	"k8s.io/client-go/kubernetes"
 
 	//
@@ -55,9 +52,9 @@ func SplitStrings(name string, gap int) string {
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
 }
 
-func processResourceList(resource string, set map[string]bool, l *ClusterContainers, clusters ...string) (map[string]bool, ClusterContainers) {
-	for _, c := range clusters {
-		currentcontext, err := GetConfigFromConfig(c, *kubeconfig)
+func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters ...string) (map[string]map[string]bool, ClusterContainers) {
+	for _, cluster := range clusters {
+		currentcontext, err := GetConfigFromConfig(cluster, *kubeconfig)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -73,85 +70,104 @@ func processResourceList(resource string, set map[string]bool, l *ClusterContain
 		case "pod", "po":
 			list = GetPod()
 		}
-		// list := GetDaemonSets()
+
+		// var resourceSet = make(map[string]map[string]bool)
+		set[resource] = make(map[string]bool)
 		for i := range list.ResourceName {
-			if !set[i] {
-				set[i] = true
+			if !set[resource][i] {
+				set[resource][i] = true
 			}
 		}
-		l.Clusters[c] = list
+
+		resourceType := ResourceType{
+			Resource: map[string]ResourceList{},
+		}
+		resourceType.Resource[resource] = list
+		l.Clusters[cluster] = resourceType
 	}
 	return set, *l
 }
 
 func CompareComponents(n string, clusters ...string) {
 	l := ClusterContainers{
-		Clusters: map[string]ResourceList{},
+		Clusters: map[string]ResourceType{},
 	}
 
-	var set = make(map[string]bool)
+	var set = make(map[string]map[string]bool)
 
 	switch n {
 	case "deployment", "deploy":
 		set, l = processResourceList(n, set, &l, clusters...)
-	case "daemonset", "ds":
-		set, l = processResourceList(n, set, &l, clusters...)
-	case "pod", "po":
-		set, l = processResourceList(n, set, &l, clusters...)
-	case "statefulset", "sts":
-		set, l = processResourceList(n, set, &l, clusters...)
+	// case "daemonset", "ds":
+	// 	set, l = processResourceList(n, set, &l, clusters...)
+	// case "pod", "po":
+	// 	set, l = processResourceList(n, set, &l, clusters...)
+	// case "statefulset", "sts":
+	// 	set, l = processResourceList(n, set, &l, clusters...)
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	tr := table.Row{"Resource"}
-	clusterkeys := make([]string, 0, len(l.Clusters))
-	for _, c := range clusters {
-		tr = append(tr, c)
-		clusterkeys = append(clusterkeys, c)
-	}
-	tr = append(tr, "Status")
-	t.AppendHeader(tr)
+	b, err := json.MarshalIndent(l, "", "    ")
+    if err != nil {
+        fmt.Println("Error:", err)
+    }
+    fmt.Println(string(b))
 
-	for i := range set {
-		summary := []string{}
+	c, err := json.MarshalIndent(set, "", "    ")
+    if err != nil {
+        fmt.Println("Error:", err)
+    }
+    fmt.Println(string(c))
 
-		var flag bool
-		summary = append(summary, SplitStrings(i, 30))
-		var imageArray [][]string
-		for _, k := range clusterkeys {
-			imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
-			for _, k := range l.Clusters[k].ResourceName[i] {
-				imageLists = append(imageLists, SplitStrings(k.Name, 30))
-			}
+	// t := table.NewWriter()
+	// t.SetOutputMirror(os.Stdout)
+	// tr := table.Row{"Resource"}
+	// clusterkeys := make([]string, 0, len(l.Clusters))
+	// for _, c := range clusters {
+	// 	tr = append(tr, c)
+	// 	clusterkeys = append(clusterkeys, c)
+	// }
+	// tr = append(tr, "Status")
+	// t.AppendHeader(tr)
 
-			sort.Strings(imageLists)
-			imageArray = append(imageArray, imageLists)
-			summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
-			t.AppendSeparator()
-			if _, ok := l.Clusters[k].ResourceName[i]; !ok {
-				flag = true
-			} else if !reflect.DeepEqual(imageArray[0], imageLists) {
-				flag = true
-			}
-		}
+	// for i := range set {
+	// 	summary := []string{}
 
-		if flag {
-			summary = append(summary, "💀")
-		} else {
-			summary = append(summary, "😄")
-		}
-		rest := table.Row{}
-		for _, m := range summary {
-			rest = append(rest, m)
-		}
-		t.AppendRows([]table.Row{
-			rest,
-		})
-	}
-	t.SetAutoIndex(true)
-	t.SortBy([]table.SortBy{
-		{Name: "Resource", Mode: table.Asc},
-	})
-	t.Render()
+	// 	var flag bool
+	// 	summary = append(summary, SplitStrings(i, 30))
+	// 	var imageArray [][]string
+	// 	for _, k := range clusterkeys {
+	// 		imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
+	// 		for _, k := range l.Clusters[k].ResourceName[i] {
+	// 			imageLists = append(imageLists, SplitStrings(k.Name, 30))
+	// 		}
+
+	// 		sort.Strings(imageLists)
+	// 		imageArray = append(imageArray, imageLists)
+	// 		summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
+	// 		t.AppendSeparator()
+	// 		if _, ok := l.Clusters[k].ResourceName[i]; !ok {
+	// 			flag = true
+	// 		} else if !reflect.DeepEqual(imageArray[0], imageLists) {
+	// 			flag = true
+	// 		}
+	// 	}
+
+	// 	if flag {
+	// 		summary = append(summary, "💀")
+	// 	} else {
+	// 		summary = append(summary, "😄")
+	// 	}
+	// 	rest := table.Row{}
+	// 	for _, m := range summary {
+	// 		rest = append(rest, m)
+	// 	}
+	// 	t.AppendRows([]table.Row{
+	// 		rest,
+	// 	})
+	// }
+	// t.SetAutoIndex(true)
+	// t.SortBy([]table.SortBy{
+	// 	{Name: "Resource", Mode: table.Asc},
+	// })
+	// t.Render()
 }
