@@ -2,8 +2,6 @@ package chk_components
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"regexp"
 
 	v1 "k8s.io/api/core/v1"
@@ -12,7 +10,8 @@ import (
 
 
 type ContainerInfo struct {
-	Name      string
+	LongImageName      string
+	ContainerName string
 	Namespace string
 	Registry  string
 	Image     string
@@ -24,7 +23,7 @@ type ResourceType struct {
 }
 
 type ResourceList struct {
-	ResourceName map[string]map[string]ContainerInfo
+	ResourceName map[string]ContainerInfo
 }
 
 type ClusterContainers struct {
@@ -32,7 +31,7 @@ type ClusterContainers struct {
 }
 
 
-func processResource(cl *ResourceList, name string, ns string, containers []v1.Container) {
+func processResource(rl *ResourceList, resourceName string, ns string, containers []v1.Container) {
 	for _, c := range containers {
 		containerName := c.Name
 		imageName := c.Image
@@ -40,16 +39,19 @@ func processResource(cl *ResourceList, name string, ns string, containers []v1.C
 		separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 		rs := separateImageRegex.FindStringSubmatch(imageName)
 		if len(rs) < 3 {
-			cl.ResourceName[name][containerName] = ContainerInfo{
-				Name:      imageName,
+			rl.ResourceName[resourceName] = ContainerInfo{
+				LongImageName:      imageName,
+				ContainerName: containerName,
 				Namespace: ns,
 				Registry:  "",
 				Image:     imageName,
 				Version:   "",
 			}
 		} else {
-			cl.ResourceName[name][containerName] = ContainerInfo{
-				Name:      m.ReplaceAllString(imageName, ""),
+			// CaaS format
+			rl.ResourceName[resourceName] = ContainerInfo{
+				LongImageName:      m.ReplaceAllString(imageName, ""),
+				ContainerName: containerName,
 				Namespace: ns,
 				Registry:  rs[1],
 				Image:     rs[2],
@@ -61,7 +63,7 @@ func processResource(cl *ResourceList, name string, ns string, containers []v1.C
 
 func GetDeployment() ResourceList {
 	cl := ResourceList{
-		ResourceName: map[string]map[string]ContainerInfo{},
+		ResourceName: map[string]ContainerInfo{},
 	}
 
 	namespaces := Namespacesarg
@@ -72,84 +74,84 @@ func GetDeployment() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
-			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
+			cl.ResourceName[d.Name] = ContainerInfo{}
 			processResource(&cl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
 	
-    b, err := json.MarshalIndent(cl, "", "    ")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-    fmt.Println(string(b))
+    // b, err := json.MarshalIndent(cl, "", "    ")
+    // if err != nil {
+    //     fmt.Println("Error:", err)
+    // }
+    // fmt.Println(string(b))
 	return cl
 }
 
-func GetDaemonSets() ResourceList {
-	cl := ResourceList{
-		ResourceName: map[string]map[string]ContainerInfo{},
-	}
+// func GetDaemonSets() ResourceList {
+// 	cl := ResourceList{
+// 		ResourceName: map[string]map[string]ContainerInfo{},
+// 	}
 
-	namespaces := Namespacesarg
-	for _, ns := range namespaces {
-		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			panic(err.Error())
-		}
-		for _, d := range resource.Items {
-			// fmt.Printf("%v\n", d.Name)
-			name := d.Name
-			cl.ResourceName[name] = map[string]ContainerInfo{}
-			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
-		}
-	}
-	return cl
-}
+// 	namespaces := Namespacesarg
+// 	for _, ns := range namespaces {
+// 		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
+// 		if err != nil {
+// 			panic(err.Error())
+// 		}
+// 		for _, d := range resource.Items {
+// 			// fmt.Printf("%v\n", d.Name)
+// 			name := d.Name
+// 			cl.ResourceName[name] = map[string]ContainerInfo{}
+// 			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
+// 		}
+// 	}
+// 	return cl
+// }
 
-func GetStatefulSets() ResourceList {
-	cl := ResourceList{
-		ResourceName: map[string]map[string]ContainerInfo{},
-	}
+// func GetStatefulSets() ResourceList {
+// 	cl := ResourceList{
+// 		ResourceName: map[string]map[string]ContainerInfo{},
+// 	}
 
-	namespaces := Namespacesarg
-	for _, ns := range namespaces {
-		resource, err := clientSet.AppsV1().StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			panic(err.Error())
-		}
-		for _, d := range resource.Items {
-			// fmt.Printf("%v\n", d.Name)
-			name := d.Name
-			cl.ResourceName[name] = map[string]ContainerInfo{}
-			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
-		}
-	}
-	return cl
-}
+// 	namespaces := Namespacesarg
+// 	for _, ns := range namespaces {
+// 		resource, err := clientSet.AppsV1().StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
+// 		if err != nil {
+// 			panic(err.Error())
+// 		}
+// 		for _, d := range resource.Items {
+// 			// fmt.Printf("%v\n", d.Name)
+// 			name := d.Name
+// 			cl.ResourceName[name] = map[string]ContainerInfo{}
+// 			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
+// 		}
+// 	}
+// 	return cl
+// }
 
-func GetPod() ResourceList {
-	// cl := ResourceList{}
-	cl := ResourceList{
-		ResourceName: map[string]map[string]ContainerInfo{},
-	}
+// func GetPod() ResourceList {
+// 	// cl := ResourceList{}
+// 	cl := ResourceList{
+// 		ResourceName: map[string]map[string]ContainerInfo{},
+// 	}
 
-	namespaces := Namespacesarg
-	for _, ns := range namespaces {
-		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			panic(err.Error())
-		}
-		for _, d := range resource.Items {
-			name := d.Name
-			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
-			processResource(&cl, name, ns, d.Spec.Containers)
-		}
-	}
+// 	namespaces := Namespacesarg
+// 	for _, ns := range namespaces {
+// 		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+// 		if err != nil {
+// 			panic(err.Error())
+// 		}
+// 		for _, d := range resource.Items {
+// 			name := d.Name
+// 			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
+// 			processResource(&cl, name, ns, d.Spec.Containers)
+// 		}
+// 	}
 
-	b, err := json.MarshalIndent(cl, "", "    ")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-    fmt.Println(string(b))
-	return cl
-}
+// 	b, err := json.MarshalIndent(cl, "", "    ")
+//     if err != nil {
+//         fmt.Println("Error:", err)
+//     }
+//     fmt.Println(string(b))
+// 	return cl
+// }

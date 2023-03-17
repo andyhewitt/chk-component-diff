@@ -63,12 +63,12 @@ func processResourceList(resource string, set map[string]map[string]bool, l *Clu
 		switch resource {
 		case "deployment", "deploy":
 			list = GetDeployment()
-		case "daemonset", "ds":
-			list = GetDaemonSets()
-		case "statefulset", "sts":
-			list = GetStatefulSets()
-		case "pod", "po":
-			list = GetPod()
+		// case "daemonset", "ds":
+		// 	list = GetDaemonSets()
+		// case "statefulset", "sts":
+		// 	list = GetStatefulSets()
+		// case "pod", "po":
+		// 	list = GetPod()
 		}
 
 		// var resourceSet = make(map[string]map[string]bool)
