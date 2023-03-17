@@ -1,6 +1,6 @@
 # chk-component-diff
-client-go to check component diff between clusters.
 
+client-go to check component diff between clusters.
 
 ## To check component image diff
 
