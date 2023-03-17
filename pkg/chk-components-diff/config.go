@@ -69,7 +69,7 @@ func GetConfigFromConfig(context, kubeconfigPath string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	clusterRegex := fmt.Sprintf("%s.*", context)
+	clusterRegex := fmt.Sprintf("%s.+", context)
 	for n := range clientConfig.Contexts {
 		re := regexp.MustCompile(clusterRegex)
 		result := re.MatchString(n)
