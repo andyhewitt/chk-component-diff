@@ -56,9 +56,11 @@ func SplitStrings(name string, gap int) string {
 }
 
 func processResourceList(resource string, set map[string]bool, l *ClusterContainers, clusters ...string) (map[string]bool, ClusterContainers) {
-	var currentcontext string
 	for _, c := range clusters {
-		currentcontext = GetConfigFromConfig(c, *kubeconfig)
+		currentcontext, err := GetConfigFromConfig(c, *kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 		switchContext(currentcontext)
 		var list ResourceList
 		switch resource {

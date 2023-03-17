@@ -33,9 +33,11 @@ type ClusterLabel struct {
 func GetNodes(label string, clusters ...string) ClusterLabel {
 	var clusterLabel ClusterLabel
 	clusterLabel.Cluster = map[string]LabelList{}
-	var currentcontext string
 	for _, c := range clusters {
-		currentcontext = GetConfigFromConfig(c, *kubeconfig)
+		currentcontext, err := GetConfigFromConfig(c, *kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 		switchContext(currentcontext)
 		resource, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 			LabelSelector: label,

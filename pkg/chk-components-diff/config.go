@@ -61,7 +61,7 @@ func BuildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) 
 		}).ClientConfig()
 }
 
-func GetConfigFromConfig(context, kubeconfigPath string) string {
+func GetConfigFromConfig(context, kubeconfigPath string) (string, error) {
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
 		&clientcmd.ConfigOverrides{})
@@ -69,13 +69,13 @@ func GetConfigFromConfig(context, kubeconfigPath string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	clusterRegex := fmt.Sprintf("%s.+", context)
+	clusterRegex := fmt.Sprintf("^%s.*", context)
 	for n := range clientConfig.Contexts {
 		re := regexp.MustCompile(clusterRegex)
 		result := re.MatchString(n)
 		if result {
-			return re.FindString(n)
+			return re.FindString(n), nil
 		}
 	}
-	return ""
+	return "", fmt.Errorf("cannot find context %s", context)
 }
