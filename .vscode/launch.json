@@ -12,7 +12,7 @@
 			"program": "${workspaceRoot}",
 			"args": [
 				"-c",
-				"jpe2-caas1-prod4",
+				"test3",
 				"-r",
 				"deploy",
 				"-n",

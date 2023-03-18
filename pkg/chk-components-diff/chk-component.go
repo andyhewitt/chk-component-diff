@@ -1,10 +1,11 @@
 package chk_components
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"k8s.io/client-go/kubernetes"
 
 	//
@@ -93,11 +94,11 @@ func CompareComponents(n string, clusters ...string) {
 		Clusters: map[string]ResourceType{},
 	}
 
-	var set = make(map[string]map[string]bool)
+	var resourceSet = make(map[string]map[string]bool)
 
 	switch n {
 	case "deployment", "deploy":
-		set, l = processResourceList(n, set, &l, clusters...)
+		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
 	// case "daemonset", "ds":
 	// 	set, l = processResourceList(n, set, &l, clusters...)
 	// case "pod", "po":
@@ -106,68 +107,75 @@ func CompareComponents(n string, clusters ...string) {
 	// 	set, l = processResourceList(n, set, &l, clusters...)
 	}
 
-	b, err := json.MarshalIndent(l, "", "    ")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-    fmt.Println(string(b))
+	// b, err := json.MarshalIndent(l, "", "    ")
+    // if err != nil {
+    //     fmt.Println("Error:", err)
+    // }
+    // fmt.Println(string(b))
 
-	c, err := json.MarshalIndent(set, "", "    ")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-    fmt.Println(string(c))
+	// c, err := json.MarshalIndent(set, "", "    ")
+    // if err != nil {
+    //     fmt.Println("Error:", err)
+    // }
+    // fmt.Println(string(c))
 
-	// t := table.NewWriter()
-	// t.SetOutputMirror(os.Stdout)
-	// tr := table.Row{"Resource"}
-	// clusterkeys := make([]string, 0, len(l.Clusters))
-	// for _, c := range clusters {
-	// 	tr = append(tr, c)
-	// 	clusterkeys = append(clusterkeys, c)
-	// }
-	// tr = append(tr, "Status")
-	// t.AppendHeader(tr)
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	tr := table.Row{"Resource"}
+	clusterkeys := make([]string, 0, len(l.Clusters))
+	for _, c := range clusters {
+		tr = append(tr, c)
+		clusterkeys = append(clusterkeys, c)
+	}
+	tr = append(tr, "Status")
+	t.AppendHeader(tr)
 
-	// for i := range set {
-	// 	summary := []string{}
+	for resource := range resourceSet {
+		var container = resourceSet[resource]
 
-	// 	var flag bool
-	// 	summary = append(summary, SplitStrings(i, 30))
-	// 	var imageArray [][]string
-	// 	for _, k := range clusterkeys {
-	// 		imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
-	// 		for _, k := range l.Clusters[k].ResourceName[i] {
-	// 			imageLists = append(imageLists, SplitStrings(k.Name, 30))
-	// 		}
+		for i := range container {
+			summary := []string{}
 
-	// 		sort.Strings(imageLists)
-	// 		imageArray = append(imageArray, imageLists)
-	// 		summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
-	// 		t.AppendSeparator()
-	// 		if _, ok := l.Clusters[k].ResourceName[i]; !ok {
-	// 			flag = true
-	// 		} else if !reflect.DeepEqual(imageArray[0], imageLists) {
-	// 			flag = true
-	// 		}
-	// 	}
+			var flag bool
+			summary = append(summary, SplitStrings(i, 30))
+			// var imageArray [][]string
+			for _, k := range clusterkeys {
+				fmt.Print(k)
+				// imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
+				// for _, k := range l.Clusters[k].ResourceName[i] {
+				// 	imageLists = append(imageLists, SplitStrings(k.Name, 30))
+				// }
 
-	// 	if flag {
-	// 		summary = append(summary, "💀")
-	// 	} else {
-	// 		summary = append(summary, "😄")
-	// 	}
-	// 	rest := table.Row{}
-	// 	for _, m := range summary {
-	// 		rest = append(rest, m)
-	// 	}
-	// 	t.AppendRows([]table.Row{
-	// 		rest,
-	// 	})
-	// }
-	// t.SetAutoIndex(true)
-	// t.SortBy([]table.SortBy{
-	// 	{Name: "Resource", Mode: table.Asc},
-	// })
-	// t.Render()
+				// sort.Strings(imageLists)
+				// imageArray = append(imageArray, imageLists)
+				// summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
+				// t.AppendSeparator()
+				// if _, ok := l.Clusters[k].ResourceName[i]; !ok {
+				// 	flag = true
+				// } else if !reflect.DeepEqual(imageArray[0], imageLists) {
+				// 	flag = true
+				// }
+			}
+
+			if flag {
+				summary = append(summary, "💀")
+			} else {
+				summary = append(summary, "😄")
+			}
+			rest := table.Row{}
+			for _, m := range summary {
+				rest = append(rest, m)
+			}
+			t.AppendRows([]table.Row{
+				rest,
+			})
+
+		}
+
+	}
+	t.SetAutoIndex(true)
+	t.SortBy([]table.SortBy{
+		{Name: "Resource", Mode: table.Asc},
+	})
+	t.Render()
 }

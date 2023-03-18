@@ -15,8 +15,29 @@ spec:
       labels:
         app: nginx
     spec:
+      volumes:
+      - name: html
+        emptyDir: {}
       containers:
       - name: nginx
         image: nginx:1.14.2
         ports:
         - containerPort: 80
+      - name: 2nd-container
+        image: debian
+        volumeMounts:
+        - name: html
+          mountPath: /html
+        command: ["/bin/sh", "-c"]
+        args:
+          - while true; do
+              date >> /html/index.html;
+              sleep 1;
+            done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
