@@ -55,7 +55,7 @@ func SplitStrings(name string, gap int) string {
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
 }
 
-func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters []string) (map[string]map[string]bool, ClusterContainers) {
+func processResourceList(resource string, set map[string]map[string]bool, cc *ClusterContainers, clusters []string) (map[string]map[string]bool, ClusterContainers) {
 
 	set[resource] = make(map[string]bool)
 
@@ -87,9 +87,9 @@ func processResourceList(resource string, set map[string]map[string]bool, l *Clu
 			Resource: map[string]ResourceList{},
 		}
 		resourceType.Resource[resource] = list
-		l.Clusters[cluster] = resourceType
+		cc.Clusters[cluster] = resourceType
 	}
-	return set, *l
+	return set, *cc
 }
 
 func CompareComponents(resourceType []string, clusters []string) {
@@ -107,7 +107,7 @@ func CompareComponents(resourceType []string, clusters []string) {
 	tr = append(tr, "Status")
 	t.AppendHeader(tr)
 	for _, resource := range resourceType {
-		l := ClusterContainers{
+		cc := ClusterContainers{
 			Clusters: map[string]ResourceType{},
 		}
 
@@ -115,27 +115,34 @@ func CompareComponents(resourceType []string, clusters []string) {
 
 		switch resource {
 		case "deployment", "deploy":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
+			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
 		case "daemonset", "ds":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
+			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
 		case "pod", "po":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
+			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
 		case "statefulset", "sts":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
+			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
 		}
 
-		container := resourceSet[resource]
-		for i := range container {
+		containers := resourceSet[resource]
+		for container := range containers {
 			summary := []string{}
 
-			var flag bool
-			flag = false
-			summary = append(summary, SplitStrings(i, 30))
+			namespaceFlag := false
+			misMatchFlag := false
+			summary = append(summary, SplitStrings(container, 30))
 			summary = append(summary, SplitStrings(resource, 30))
+			for _, k := range clusterkeys {
+				if !namespaceFlag && cc.Clusters[k].Resource[resource].ResourceName[container].Namespace != "" {
+					summary = append(summary, SplitStrings(cc.Clusters[k].Resource[resource].ResourceName[container].Namespace, 30))
+					namespaceFlag = true
+				}
+			}
 			var imageArray [][]string
 			for _, k := range clusterkeys {
-				summary = append(summary, SplitStrings(l.Clusters[k].Resource[resource].ResourceName[i].Namespace, 30))
-				currentResource := l.Clusters[k].Resource[resource].ResourceName[i]
+
+
+				currentResource := cc.Clusters[k].Resource[resource].ResourceName[container]
 				imageLists := make([]string, 0, len(currentResource.Container))
 				for _, c := range currentResource.Container {
 					imageLists = append(imageLists, SplitStrings(c.LongImageName, 30))
@@ -144,16 +151,16 @@ func CompareComponents(resourceType []string, clusters []string) {
 				sort.Strings(imageLists)
 				imageArray = append(imageArray, imageLists)
 				summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
-				// fmt.Printf("%+v\n", summary)
+
 				t.AppendSeparator()
-				if _, ok := l.Clusters[k].Resource[resource].ResourceName[i]; !ok {
-					flag = true
+				if _, ok := cc.Clusters[k].Resource[resource].ResourceName[container]; !ok {
+					misMatchFlag = true
 				} else if !reflect.DeepEqual(imageArray[0], imageLists) {
-					flag = true
+					misMatchFlag = true
 				}
 			}
 
-			if flag {
+			if misMatchFlag {
 				summary = append(summary, "💀")
 			} else {
 				summary = append(summary, "😄")
@@ -168,8 +175,9 @@ func CompareComponents(resourceType []string, clusters []string) {
 		}
 	}
 	t.SetAutoIndex(true)
-	// t.SortBy([]table.SortBy{
-	// 	{Name: "Resource", Mode: table.Asc},
-	// })
+	t.SortBy([]table.SortBy{
+		{Name: "ResourceType", Mode: table.Asc},
+		{Name: "Resource", Mode: table.Asc},
+	})
 	t.Render()
 }
