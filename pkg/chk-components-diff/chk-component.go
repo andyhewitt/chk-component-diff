@@ -55,7 +55,7 @@ func SplitStrings(name string, gap int) string {
 	return fmt.Sprintf("%v", strings.Join(splitLines, "\n"))
 }
 
-func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters ...string) (map[string]map[string]bool, ClusterContainers) {
+func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters []string) (map[string]map[string]bool, ClusterContainers) {
 
 	set[resource] = make(map[string]bool)
 
@@ -115,13 +115,13 @@ func CompareComponents(resourceType []string, clusters []string) {
 
 		switch resource {
 		case "deployment", "deploy":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
 		case "daemonset", "ds":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
 		case "pod", "po":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
 		case "statefulset", "sts":
-			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters)
 		}
 
 		container := resourceSet[resource]
@@ -168,8 +168,8 @@ func CompareComponents(resourceType []string, clusters []string) {
 		}
 	}
 	t.SetAutoIndex(true)
-	t.SortBy([]table.SortBy{
-		{Name: "Resource", Mode: table.Asc},
-	})
+	// t.SortBy([]table.SortBy{
+	// 	{Name: "Resource", Mode: table.Asc},
+	// })
 	t.Render()
 }

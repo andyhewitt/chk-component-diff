@@ -20,7 +20,7 @@ import (
 
 func main() {
 	if chk_components.Labelarg != "" {
-		chk_components.CompareLabels(chk_components.Labelarg, chk_components.Clustersarg...)
+		chk_components.CompareLabels(chk_components.Labelarg, chk_components.Clustersarg)
 	} else {
 		chk_components.CompareComponents(chk_components.Resourcesarg, chk_components.Clustersarg)
 	}

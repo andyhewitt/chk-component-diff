@@ -30,7 +30,7 @@ type ClusterLabel struct {
 	Cluster map[string]LabelList
 }
 
-func GetNodes(label string, clusters ...string) ClusterLabel {
+func GetNodes(label string, clusters []string) ClusterLabel {
 	var clusterLabel ClusterLabel
 	clusterLabel.Cluster = map[string]LabelList{}
 	for _, c := range clusters {
@@ -60,8 +60,8 @@ func GetNodes(label string, clusters ...string) ClusterLabel {
 	return clusterLabel
 }
 
-func CompareLabels(label string, clusters ...string) {
-	labellist := GetNodes(label, clusters...)
+func CompareLabels(label string, clusters []string) {
+	labellist := GetNodes(label, clusters)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	tr := table.Row{}
