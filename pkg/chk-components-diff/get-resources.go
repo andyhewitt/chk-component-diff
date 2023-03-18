@@ -8,22 +8,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 type ContainerInfo struct {
-	LongImageName      string
-	Namespace string
-	Registry  string
-	Image     string
-	Version   string
+	LongImageName string
+	Registry      string
+	Image         string
+	Version       string
 }
 
 // For multiple container Pod/Deployment etc
-type ContainerName struct {
-	ContainerName map[string]ContainerInfo
+type Container struct {
+	Container map[string]ContainerInfo
+	Namespace string
 }
 
 type ResourceList struct {
-	ResourceName map[string]ContainerName
+	ResourceName map[string]Container
 }
 
 type ResourceType struct {
@@ -34,7 +33,6 @@ type ClusterContainers struct {
 	Clusters map[string]ResourceType
 }
 
-
 func processResource(rl *ResourceList, resourceName string, ns string, containers []v1.Container) {
 	for _, c := range containers {
 		cName := c.Name
@@ -43,21 +41,19 @@ func processResource(rl *ResourceList, resourceName string, ns string, container
 		separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
 		rs := separateImageRegex.FindStringSubmatch(imageName)
 		if len(rs) < 3 {
-			rl.ResourceName[resourceName].ContainerName[cName] = ContainerInfo{
-				LongImageName:      imageName,
-				Namespace: ns,
-				Registry:  "",
-				Image:     imageName,
-				Version:   "",
+			rl.ResourceName[resourceName].Container[cName] = ContainerInfo{
+				LongImageName: imageName,
+				Registry:      "",
+				Image:         imageName,
+				Version:       "",
 			}
 		} else {
 			// CaaS format
-			rl.ResourceName[resourceName].ContainerName[cName] = ContainerInfo{
-				LongImageName:      m.ReplaceAllString(imageName, ""),
-				Namespace: ns,
-				Registry:  rs[1],
-				Image:     rs[2],
-				Version:   rs[3],
+			rl.ResourceName[resourceName].Container[cName] = ContainerInfo{
+				LongImageName: m.ReplaceAllString(imageName, ""),
+				Registry:      rs[1],
+				Image:         rs[2],
+				Version:       rs[3],
 			}
 		}
 	}
@@ -68,7 +64,7 @@ func GetDeployment() ResourceList {
 	rl := ResourceList{}
 
 	// initialize the ResourceName field with a map
-	rl.ResourceName = make(map[string]ContainerName)
+	rl.ResourceName = make(map[string]Container)
 
 	namespaces := Namespacesarg
 	for _, ns := range namespaces {
@@ -81,13 +77,16 @@ func GetDeployment() ResourceList {
 		for _, d := range resource.Items {
 			resourceName := d.Name
 			// add a new resource to the map
-			cn := ContainerName{}
-			cn.ContainerName = make(map[string]ContainerInfo)
+			cn := Container{
+				Container: make(map[string]ContainerInfo),
+				Namespace: ns,
+			}
+			cn.Container = make(map[string]ContainerInfo)
 			rl.ResourceName[d.Name] = cn
 			processResource(&rl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
 	}
-	
+
 	return rl
 }
 
@@ -96,7 +95,7 @@ func GetDaemonSets() ResourceList {
 	rl := ResourceList{}
 
 	// initialize the ResourceName field with a map
-	rl.ResourceName = make(map[string]ContainerName)
+	rl.ResourceName = make(map[string]Container)
 
 	namespaces := Namespacesarg
 	for _, ns := range namespaces {
@@ -107,8 +106,11 @@ func GetDaemonSets() ResourceList {
 		for _, d := range resource.Items {
 			resourceName := d.Name
 			// add a new resource to the map
-			cn := ContainerName{}
-			cn.ContainerName = make(map[string]ContainerInfo)
+			cn := Container{
+				Container: make(map[string]ContainerInfo),
+				Namespace: ns,
+			}
+			cn.Container = make(map[string]ContainerInfo)
 			rl.ResourceName[d.Name] = cn
 			processResource(&rl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
@@ -121,7 +123,7 @@ func GetStatefulSets() ResourceList {
 	rl := ResourceList{}
 
 	// initialize the ResourceName field with a map
-	rl.ResourceName = make(map[string]ContainerName)
+	rl.ResourceName = make(map[string]Container)
 
 	namespaces := Namespacesarg
 	for _, ns := range namespaces {
@@ -132,8 +134,11 @@ func GetStatefulSets() ResourceList {
 		for _, d := range resource.Items {
 			resourceName := d.Name
 			// add a new resource to the map
-			cn := ContainerName{}
-			cn.ContainerName = make(map[string]ContainerInfo)
+			cn := Container{
+				Container: make(map[string]ContainerInfo),
+				Namespace: ns,
+			}
+			cn.Container = make(map[string]ContainerInfo)
 			rl.ResourceName[d.Name] = cn
 			processResource(&rl, resourceName, ns, d.Spec.Template.Spec.Containers)
 		}
@@ -146,7 +151,7 @@ func GetPod() ResourceList {
 	rl := ResourceList{}
 
 	// initialize the ResourceName field with a map
-	rl.ResourceName = make(map[string]ContainerName)
+	rl.ResourceName = make(map[string]Container)
 
 	namespaces := Namespacesarg
 	for _, ns := range namespaces {
@@ -157,8 +162,11 @@ func GetPod() ResourceList {
 		for _, d := range resource.Items {
 			resourceName := d.Name
 			// add a new resource to the map
-			cn := ContainerName{}
-			cn.ContainerName = make(map[string]ContainerInfo)
+			cn := Container{
+				Container: make(map[string]ContainerInfo),
+				Namespace: ns,
+			}
+			cn.Container = make(map[string]ContainerInfo)
 			rl.ResourceName[d.Name] = cn
 			processResource(&rl, resourceName, ns, d.Spec.Containers)
 		}

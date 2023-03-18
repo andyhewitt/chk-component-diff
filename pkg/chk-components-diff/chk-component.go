@@ -56,9 +56,9 @@ func SplitStrings(name string, gap int) string {
 }
 
 func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters ...string) (map[string]map[string]bool, ClusterContainers) {
-	
+
 	set[resource] = make(map[string]bool)
-	
+
 	for _, cluster := range clusters {
 		currentcontext, err := GetConfigFromConfig(cluster, *kubeconfig)
 		if err != nil {
@@ -92,54 +92,59 @@ func processResourceList(resource string, set map[string]map[string]bool, l *Clu
 	return set, *l
 }
 
-func CompareComponents(n string, clusters ...string) {
-	l := ClusterContainers{
-		Clusters: map[string]ResourceType{},
-	}
-
-	var resourceSet = make(map[string]map[string]bool)
-
-	switch n {
-	case "deployment", "deploy":
-		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
-	case "daemonset", "ds":
-		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
-	case "pod", "po":
-		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
-	case "statefulset", "sts":
-		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
-	}
+func CompareComponents(resourceType []string, clusters []string) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	tr := table.Row{"Resource"}
-	clusterkeys := make([]string, 0, len(l.Clusters))
+	tr = append(tr, "ResourceType")
+	tr = append(tr, "Namespace")
+	clusterkeys := make([]string, 0, len(clusters))
 	for _, c := range clusters {
 		tr = append(tr, c)
 		clusterkeys = append(clusterkeys, c)
 	}
 	tr = append(tr, "Status")
 	t.AppendHeader(tr)
+	for _, resource := range resourceType {
+		l := ClusterContainers{
+			Clusters: map[string]ResourceType{},
+		}
 
-	for resource := range resourceSet {
+		var resourceSet = make(map[string]map[string]bool)
+
+		switch resource {
+		case "deployment", "deploy":
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+		case "daemonset", "ds":
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+		case "pod", "po":
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+		case "statefulset", "sts":
+			resourceSet, l = processResourceList(resource, resourceSet, &l, clusters...)
+		}
+
 		container := resourceSet[resource]
-
 		for i := range container {
 			summary := []string{}
 
 			var flag bool
+			flag = false
 			summary = append(summary, SplitStrings(i, 30))
+			summary = append(summary, SplitStrings(resource, 30))
 			var imageArray [][]string
 			for _, k := range clusterkeys {
+				summary = append(summary, SplitStrings(l.Clusters[k].Resource[resource].ResourceName[i].Namespace, 30))
 				currentResource := l.Clusters[k].Resource[resource].ResourceName[i]
-				imageLists := make([]string, 0, len(currentResource.ContainerName))
-				for _, k := range currentResource.ContainerName {
-					imageLists = append(imageLists, SplitStrings(k.LongImageName, 30))
+				imageLists := make([]string, 0, len(currentResource.Container))
+				for _, c := range currentResource.Container {
+					imageLists = append(imageLists, SplitStrings(c.LongImageName, 30))
 				}
 
 				sort.Strings(imageLists)
 				imageArray = append(imageArray, imageLists)
 				summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
+				// fmt.Printf("%+v\n", summary)
 				t.AppendSeparator()
 				if _, ok := l.Clusters[k].Resource[resource].ResourceName[i]; !ok {
 					flag = true
@@ -160,9 +165,7 @@ func CompareComponents(n string, clusters ...string) {
 			t.AppendRows([]table.Row{
 				rest,
 			})
-
 		}
-
 	}
 	t.SetAutoIndex(true)
 	t.SortBy([]table.SortBy{

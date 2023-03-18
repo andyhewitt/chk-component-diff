@@ -18,7 +18,7 @@ var (
 	kubeconfig    *string
 	Clustersarg   []string
 	Namespacesarg []string
-	Resourcesarg  string
+	Resourcesarg  []string
 	Labelarg      string
 )
 
@@ -30,7 +30,7 @@ func init() {
 	}
 
 	clusters := flag.String("c", "", "Provide cluster name you want to check. ( eg. -c=test1,test2 )")
-	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=pod )")
+	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=deploy,sts )")
 	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
 	label := flag.String("l", "", "Provide a label you want to check. ( eg. -l=cluster.aps.cpd.rakuten.com/noderole=master )")
 
@@ -38,7 +38,7 @@ func init() {
 
 	Clustersarg = strings.Split(*clusters, ",")
 	Namespacesarg = strings.Split(*namespaces, ",")
-	Resourcesarg = *resources
+	Resourcesarg = strings.Split(*resources, ",")
 	Labelarg = *label
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
