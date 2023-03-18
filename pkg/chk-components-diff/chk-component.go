@@ -69,12 +69,12 @@ func processResourceList(resource string, set map[string]map[string]bool, l *Clu
 		switch resource {
 		case "deployment", "deploy":
 			list = GetDeployment()
-		// case "daemonset", "ds":
-		// 	list = GetDaemonSets()
-		// case "statefulset", "sts":
-		// 	list = GetStatefulSets()
-		// case "pod", "po":
-		// 	list = GetPod()
+		case "daemonset", "ds":
+			list = GetDaemonSets()
+		case "statefulset", "sts":
+			list = GetStatefulSets()
+		case "pod", "po":
+			list = GetPod()
 		}
 
 		for i := range list.ResourceName {
@@ -102,19 +102,13 @@ func CompareComponents(n string, clusters ...string) {
 	switch n {
 	case "deployment", "deploy":
 		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
-	// case "daemonset", "ds":
-	// 	set, l = processResourceList(n, set, &l, clusters...)
-	// case "pod", "po":
-	// 	set, l = processResourceList(n, set, &l, clusters...)
-	// case "statefulset", "sts":
-	// 	set, l = processResourceList(n, set, &l, clusters...)
+	case "daemonset", "ds":
+		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
+	case "pod", "po":
+		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
+	case "statefulset", "sts":
+		resourceSet, l = processResourceList(n, resourceSet, &l, clusters...)
 	}
-
-	// b, err := json.MarshalIndent(l, "", "    ")
-    // if err != nil {
-    //     fmt.Println("Error:", err)
-    // }
-    // fmt.Println(string(b))
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)

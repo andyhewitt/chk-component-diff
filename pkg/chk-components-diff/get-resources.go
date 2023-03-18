@@ -91,71 +91,78 @@ func GetDeployment() ResourceList {
 	return rl
 }
 
-// func GetDaemonSets() ResourceList {
-// 	cl := ResourceList{
-// 		ResourceName: map[string]map[string]ContainerInfo{},
-// 	}
+func GetDaemonSets() ResourceList {
+	// create an empty variable of the ResourceList struct type
+	rl := ResourceList{}
 
-// 	namespaces := Namespacesarg
-// 	for _, ns := range namespaces {
-// 		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		for _, d := range resource.Items {
-// 			// fmt.Printf("%v\n", d.Name)
-// 			name := d.Name
-// 			cl.ResourceName[name] = map[string]ContainerInfo{}
-// 			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
-// 		}
-// 	}
-// 	return cl
-// }
+	// initialize the ResourceName field with a map
+	rl.ResourceName = make(map[string]ContainerName)
 
-// func GetStatefulSets() ResourceList {
-// 	cl := ResourceList{
-// 		ResourceName: map[string]map[string]ContainerInfo{},
-// 	}
+	namespaces := Namespacesarg
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			resourceName := d.Name
+			// add a new resource to the map
+			cn := ContainerName{}
+			cn.ContainerName = make(map[string]ContainerInfo)
+			rl.ResourceName[d.Name] = cn
+			processResource(&rl, resourceName, ns, d.Spec.Template.Spec.Containers)
+		}
+	}
+	return rl
+}
 
-// 	namespaces := Namespacesarg
-// 	for _, ns := range namespaces {
-// 		resource, err := clientSet.AppsV1().StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		for _, d := range resource.Items {
-// 			// fmt.Printf("%v\n", d.Name)
-// 			name := d.Name
-// 			cl.ResourceName[name] = map[string]ContainerInfo{}
-// 			processResource(&cl, name, ns, d.Spec.Template.Spec.Containers)
-// 		}
-// 	}
-// 	return cl
-// }
+func GetStatefulSets() ResourceList {
+	// create an empty variable of the ResourceList struct type
+	rl := ResourceList{}
 
-// func GetPod() ResourceList {
-// 	// cl := ResourceList{}
-// 	cl := ResourceList{
-// 		ResourceName: map[string]map[string]ContainerInfo{},
-// 	}
+	// initialize the ResourceName field with a map
+	rl.ResourceName = make(map[string]ContainerName)
 
-// 	namespaces := Namespacesarg
-// 	for _, ns := range namespaces {
-// 		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		for _, d := range resource.Items {
-// 			name := d.Name
-// 			cl.ResourceName[d.Name] = map[string]ContainerInfo{}
-// 			processResource(&cl, name, ns, d.Spec.Containers)
-// 		}
-// 	}
+	namespaces := Namespacesarg
+	for _, ns := range namespaces {
+		resource, err := clientSet.AppsV1().StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			resourceName := d.Name
+			// add a new resource to the map
+			cn := ContainerName{}
+			cn.ContainerName = make(map[string]ContainerInfo)
+			rl.ResourceName[d.Name] = cn
+			processResource(&rl, resourceName, ns, d.Spec.Template.Spec.Containers)
+		}
+	}
+	return rl
+}
 
-// 	b, err := json.MarshalIndent(cl, "", "    ")
-//     if err != nil {
-//         fmt.Println("Error:", err)
-//     }
-//     fmt.Println(string(b))
-// 	return cl
-// }
+func GetPod() ResourceList {
+	// create an empty variable of the ResourceList struct type
+	rl := ResourceList{}
+
+	// initialize the ResourceName field with a map
+	rl.ResourceName = make(map[string]ContainerName)
+
+	namespaces := Namespacesarg
+	for _, ns := range namespaces {
+		resource, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		for _, d := range resource.Items {
+			resourceName := d.Name
+			// add a new resource to the map
+			cn := ContainerName{}
+			cn.ContainerName = make(map[string]ContainerInfo)
+			rl.ResourceName[d.Name] = cn
+			processResource(&rl, resourceName, ns, d.Spec.Containers)
+		}
+	}
+
+	return rl
+}
