@@ -2,8 +2,6 @@ package chk_components
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"regexp"
 
 	v1 "k8s.io/api/core/v1"
@@ -90,11 +88,6 @@ func GetDeployment() ResourceList {
 		}
 	}
 	
-    b, err := json.MarshalIndent(rl, "", "    ")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-    fmt.Println(string(b))
 	return rl
 }
 

@@ -3,6 +3,8 @@ package chk_components
 import (
 	"fmt"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -54,6 +56,9 @@ func SplitStrings(name string, gap int) string {
 }
 
 func processResourceList(resource string, set map[string]map[string]bool, l *ClusterContainers, clusters ...string) (map[string]map[string]bool, ClusterContainers) {
+	
+	set[resource] = make(map[string]bool)
+	
 	for _, cluster := range clusters {
 		currentcontext, err := GetConfigFromConfig(cluster, *kubeconfig)
 		if err != nil {
@@ -72,8 +77,6 @@ func processResourceList(resource string, set map[string]map[string]bool, l *Clu
 		// 	list = GetPod()
 		}
 
-		// var resourceSet = make(map[string]map[string]bool)
-		set[resource] = make(map[string]bool)
 		for i := range list.ResourceName {
 			if !set[resource][i] {
 				set[resource][i] = true
@@ -113,12 +116,6 @@ func CompareComponents(n string, clusters ...string) {
     // }
     // fmt.Println(string(b))
 
-	// c, err := json.MarshalIndent(set, "", "    ")
-    // if err != nil {
-    //     fmt.Println("Error:", err)
-    // }
-    // fmt.Println(string(c))
-
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	tr := table.Row{"Resource"}
@@ -131,30 +128,30 @@ func CompareComponents(n string, clusters ...string) {
 	t.AppendHeader(tr)
 
 	for resource := range resourceSet {
-		var container = resourceSet[resource]
+		container := resourceSet[resource]
 
 		for i := range container {
 			summary := []string{}
 
 			var flag bool
 			summary = append(summary, SplitStrings(i, 30))
-			// var imageArray [][]string
+			var imageArray [][]string
 			for _, k := range clusterkeys {
-				fmt.Print(k)
-				// imageLists := make([]string, 0, len(l.Clusters[k].ResourceName[i]))
-				// for _, k := range l.Clusters[k].ResourceName[i] {
-				// 	imageLists = append(imageLists, SplitStrings(k.Name, 30))
-				// }
+				currentResource := l.Clusters[k].Resource[resource].ResourceName[i]
+				imageLists := make([]string, 0, len(currentResource.ContainerName))
+				for _, k := range currentResource.ContainerName {
+					imageLists = append(imageLists, SplitStrings(k.LongImageName, 30))
+				}
 
-				// sort.Strings(imageLists)
-				// imageArray = append(imageArray, imageLists)
-				// summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
-				// t.AppendSeparator()
-				// if _, ok := l.Clusters[k].ResourceName[i]; !ok {
-				// 	flag = true
-				// } else if !reflect.DeepEqual(imageArray[0], imageLists) {
-				// 	flag = true
-				// }
+				sort.Strings(imageLists)
+				imageArray = append(imageArray, imageLists)
+				summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
+				t.AppendSeparator()
+				if _, ok := l.Clusters[k].Resource[resource].ResourceName[i]; !ok {
+					flag = true
+				} else if !reflect.DeepEqual(imageArray[0], imageLists) {
+					flag = true
+				}
 			}
 
 			if flag {
