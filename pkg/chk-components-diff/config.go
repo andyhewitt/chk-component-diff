@@ -20,6 +20,7 @@ var (
 	Namespacesarg []string
 	Resourcesarg  []string
 	Labelarg      string
+	TableLengtharg   int
 )
 
 func init() {
@@ -33,6 +34,7 @@ func init() {
 	resources := flag.String("r", "", "Provide resources type you want to check. ( eg. -r=deploy,sts )")
 	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
 	label := flag.String("l", "", "Provide a label you want to check. ( eg. -l=cluster.aps.cpd.rakuten.com/noderole=master )")
+	flag.IntVar(&TableLengtharg, "table-length", 30, "The maximum word length to show on a singel cell. ( eg. -table-length=30 )")
 
 	flag.Parse()
 
@@ -40,6 +42,7 @@ func init() {
 	Namespacesarg = strings.Split(*namespaces, ",")
 	Resourcesarg = strings.Split(*resources, ",")
 	Labelarg = *label
+	// TableLengtharg = tableLength
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {

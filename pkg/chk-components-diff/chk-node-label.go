@@ -81,7 +81,7 @@ func CompareLabels(label string, clusters []string) {
 
 	for item := range set {
 		summary := []string{}
-		summary = append(summary, SplitStrings(item, 30))
+		summary = append(summary, SplitStrings(item))
 		for _, c := range clusters {
 			flag := true
 			for _, l := range labellist.Cluster[c].LabelList {

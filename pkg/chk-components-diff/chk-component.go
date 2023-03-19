@@ -34,7 +34,8 @@ func switchContext(context string) {
 	}
 }
 
-func SplitStrings(name string, gap int) string {
+func SplitStrings(name string) string {
+	gap := TableLengtharg
 	var splitLines []string
 	strLength := len(name) - 1
 	if strLength <= gap {
@@ -92,79 +93,70 @@ func processResourceList(resource string, set map[string]map[string]bool, cc *Cl
 	return set, *cc
 }
 
-func CompareComponents(resourceType []string, clusters []string) {
-
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	tr := table.Row{"Resource"}
-	tr = append(tr, "ResourceType")
-	tr = append(tr, "Namespace")
-	clusterkeys := make([]string, 0, len(clusters))
-	for _, c := range clusters {
-		tr = append(tr, c)
-		clusterkeys = append(clusterkeys, c)
-	}
-	tr = append(tr, "Status")
-	t.AppendHeader(tr)
-	for _, resource := range resourceType {
+func PrepareCompareRawData(resource string, clusters []string) (map[string]map[string]bool, ClusterContainers){
 		cc := ClusterContainers{
 			Clusters: map[string]ResourceType{},
 		}
 
-		var resourceSet = make(map[string]map[string]bool)
+		resourceSet := make(map[string]map[string]bool)
 
 		switch resource {
-		case "deployment", "deploy":
-			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
-		case "daemonset", "ds":
-			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
-		case "pod", "po":
-			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
-		case "statefulset", "sts":
+		case "deployment", "deploy", "daemonset", "ds", "pod", "po", "statefulset", "sts":
 			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
 		}
+
+		return resourceSet, cc
+}
+
+func CompareComponents(resourceType []string, clusters []string) {
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	tr := table.Row{"Resource", "ResourceType", "Namespace"}
+	for _, c := range clusters {
+		tr = append(tr, c)
+	}
+	tr = append(tr, "Status")
+	t.AppendHeader(tr)
+	for _, resource := range resourceType {
+		resourceSet, cc := PrepareCompareRawData(resource, clusters)
 
 		containers := resourceSet[resource]
 		for container := range containers {
 			summary := []string{}
+			summary = append(summary, SplitStrings(container))
+			summary = append(summary, SplitStrings(resource))
 
-			namespaceFlag := false
-			misMatchFlag := false
-			summary = append(summary, SplitStrings(container, 30))
-			summary = append(summary, SplitStrings(resource, 30))
-			for _, k := range clusterkeys {
-				if !namespaceFlag && cc.Clusters[k].Resource[resource].ResourceName[container].Namespace != "" {
-					summary = append(summary, SplitStrings(cc.Clusters[k].Resource[resource].ResourceName[container].Namespace, 30))
-					namespaceFlag = true
-				}
-			}
 			var imageArray [][]string
-			for _, k := range clusterkeys {
+			var nameSpace string
+			for _, k := range clusters {
 
+				currentResource := cc.Clusters[k].Resource[resource]
+				imageLists := make([]string, 0, len(currentResource.ResourceName[container].Container))
 
-				currentResource := cc.Clusters[k].Resource[resource].ResourceName[container]
-				imageLists := make([]string, 0, len(currentResource.Container))
-				for _, c := range currentResource.Container {
-					imageLists = append(imageLists, SplitStrings(c.LongImageName, 30))
+				if currentResource, ok := currentResource.ResourceName[container]; ok {
+					nameSpace = currentResource.Namespace
+				}
+
+				for _, c := range currentResource.ResourceName[container].Container {
+					imageLists = append(imageLists, SplitStrings(c.LongImageName))
 				}
 
 				sort.Strings(imageLists)
 				imageArray = append(imageArray, imageLists)
-				summary = append(summary, fmt.Sprintf("%v", strings.Join(imageLists, "\n")))
 
 				t.AppendSeparator()
-				if _, ok := cc.Clusters[k].Resource[resource].ResourceName[container]; !ok {
-					misMatchFlag = true
-				} else if !reflect.DeepEqual(imageArray[0], imageLists) {
-					misMatchFlag = true
-				}
 			}
 
-			if misMatchFlag {
+			summary = append(summary, nameSpace)
+			if !AllEqual(imageArray) {
+				summary = append(summary, imagesToSummary(imageArray)...)
 				summary = append(summary, "💀")
 			} else {
+				summary = append(summary, imagesToSummary(imageArray)...)
 				summary = append(summary, "😄")
 			}
+
 			rest := table.Row{}
 			for _, m := range summary {
 				rest = append(rest, m)
@@ -180,4 +172,27 @@ func CompareComponents(resourceType []string, clusters []string) {
 		{Name: "Resource", Mode: table.Asc},
 	})
 	t.Render()
+}
+
+func imagesToSummary(images [][]string) []string {
+	var summary []string
+	for _, imageList := range images {
+		if len(imageList) == 0 {
+			summary = append(summary, "-")
+		} else {
+			summary = append(summary, strings.Join(imageList, "\n"))
+		}
+	}
+	// fmt.Printf("%+v\n", summary)
+	return summary
+	// return strings.Join(summary, "\n")
+}
+
+func AllEqual(arr [][]string) bool {
+	for i := 1; i < len(arr); i++ {
+		if !reflect.DeepEqual(arr[0], arr[i]) {
+			return false
+		}
+	}
+	return true
 }
