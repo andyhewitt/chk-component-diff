@@ -14,13 +14,14 @@ import (
 )
 
 var (
-	clientSet     *kubernetes.Clientset
-	kubeconfig    *string
-	Clustersarg   []string
-	Namespacesarg []string
-	Resourcesarg  []string
-	Labelarg      string
-	TableLengtharg   int
+	clientSet      *kubernetes.Clientset
+	kubeconfig     *string
+	Clustersarg    []string
+	Namespacesarg  []string
+	Resourcesarg   []string
+	Labelarg       string
+	TableLengtharg int
+	CaaSCheck      bool
 )
 
 func init() {
