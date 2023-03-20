@@ -93,19 +93,19 @@ func processResourceList(resource string, set map[string]map[string]bool, cc *Cl
 	return set, *cc
 }
 
-func PrepareCompareRawData(resource string, clusters []string) (map[string]map[string]bool, ClusterContainers){
-		cc := ClusterContainers{
-			Clusters: map[string]ResourceType{},
-		}
+func PrepareCompareRawData(resource string, clusters []string) (map[string]map[string]bool, ClusterContainers) {
+	cc := ClusterContainers{
+		Clusters: map[string]ResourceType{},
+	}
 
-		resourceSet := make(map[string]map[string]bool)
+	resourceSet := make(map[string]map[string]bool)
 
-		switch resource {
-		case "deployment", "deploy", "daemonset", "ds", "pod", "po", "statefulset", "sts":
-			resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
-		}
+	switch resource {
+	case "deployment", "deploy", "daemonset", "ds", "pod", "po", "statefulset", "sts":
+		resourceSet, cc = processResourceList(resource, resourceSet, &cc, clusters)
+	}
 
-		return resourceSet, cc
+	return resourceSet, cc
 }
 
 func CompareComponents(resourceType []string, clusters []string) {
@@ -169,6 +169,7 @@ func CompareComponents(resourceType []string, clusters []string) {
 	t.SetAutoIndex(true)
 	t.SortBy([]table.SortBy{
 		{Name: "ResourceType", Mode: table.Asc},
+		{Name: "Namespace", Mode: table.Asc},
 		{Name: "Resource", Mode: table.Asc},
 	})
 	t.Render()

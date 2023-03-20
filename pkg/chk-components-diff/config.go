@@ -36,6 +36,7 @@ func init() {
 	namespaces := flag.String("n", "default", "Provide namespaces you want to check. ( eg. -r=caas-system,kube-system )")
 	label := flag.String("l", "", "Provide a label you want to check. ( eg. -l=cluster.aps.cpd.rakuten.com/noderole=master )")
 	flag.IntVar(&TableLengtharg, "table-length", 30, "The maximum word length to show on a singel cell. ( eg. -table-length=30 )")
+	flag.BoolVar(&CaaSCheck, "caas", false, "If this label is set to true, only caas core component will be checed.")
 
 	flag.Parse()
 
@@ -43,7 +44,11 @@ func init() {
 	Namespacesarg = strings.Split(*namespaces, ",")
 	Resourcesarg = strings.Split(*resources, ",")
 	Labelarg = *label
-	// TableLengtharg = tableLength
+
+	if CaaSCheck {
+		Namespacesarg = []string{"kube-system", "caas-system", "caas-csi"}
+		Resourcesarg = []string{"deploy", "ds", "sts"}
+	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {

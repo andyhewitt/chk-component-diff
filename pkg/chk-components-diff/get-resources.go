@@ -33,6 +33,55 @@ type ClusterContainers struct {
 	Clusters map[string]ResourceType
 }
 
+var caasComponents = []string{
+	"calico-node",
+	"cloud-controller-manager",
+	"kube-addon-manager",
+	"kube-proxy",
+	"node-exporter",
+	"prometheus-node-exporter",
+	"npd-v0.4.1",
+	"node-problem-detector",
+	"etcd-exporter",
+	"filebeat",
+	"filebeat-audit-logs",
+	"goldpinger",
+	"journalbeat",
+	"cephfs-csi-cephfs-nodeplugin",
+	"driver-registrar",
+	"csi-cephfsplugin",
+	"liveness-prometheus",
+	"openebs-ndm",
+	"node-disk-manager",
+	"calico-kube-controllers",
+	"calico-typha",
+	"coredns",
+	"event-exporter",
+	"heapster-v1.5.4",
+	"metrics-server-v0.3.6",
+	"dns-monitoring",
+	"gateway-controller",
+	"ignition-config-api",
+	"jiange",
+	"ns-operator-v4",
+	"sorry-server",
+	"storage-operator",
+	"wildic",
+	"cephfs-csi-cephfs-provisioner",
+	"openebs-localpv-provisioner",
+	"openebs-ndm-operator",
+	"kube-state-metrics",
+}
+
+func isCaaSComponent(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 func processResource(rl *ResourceList, resourceName string, ns string, containers []v1.Container) {
 	for _, c := range containers {
 		cName := c.Name
@@ -97,6 +146,9 @@ func GetDaemonSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
+			if !isCaaSComponent(resourceName, caasComponents) {
+				continue
+			}
 			// add a new resource to the map
 			cn := Container{
 				Container: make(map[string]ContainerInfo),
@@ -125,6 +177,9 @@ func GetStatefulSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
+			if !isCaaSComponent(resourceName, caasComponents) {
+				continue
+			}
 			// add a new resource to the map
 			cn := Container{
 				Container: make(map[string]ContainerInfo),
@@ -153,6 +208,9 @@ func GetPod() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
+			if !isCaaSComponent(resourceName, caasComponents) {
+				continue
+			}
 			// add a new resource to the map
 			cn := Container{
 				Container: make(map[string]ContainerInfo),
