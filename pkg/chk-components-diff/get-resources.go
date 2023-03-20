@@ -37,23 +37,15 @@ func processResource(rl *ResourceList, resourceName string, ns string, container
 	for _, c := range containers {
 		cName := c.Name
 		imageName := c.Image
-		m := regexp.MustCompile("^registry.+net/")
-		separateImageRegex := regexp.MustCompile("(.+/)(.+):(.+)")
-		rs := separateImageRegex.FindStringSubmatch(imageName)
-		if len(rs) < 3 {
-			rl.ResourceName[resourceName].Container[cName] = ContainerInfo{
-				LongImageName: imageName,
-				Registry:      "",
-				Image:         imageName,
-				Version:       "",
-			}
-		} else {
-			// CaaS format
+		m := regexp.MustCompile("^registry.+r-local.net/")
+		result := m.MatchString(imageName)
+		if result {
 			rl.ResourceName[resourceName].Container[cName] = ContainerInfo{
 				LongImageName: m.ReplaceAllString(imageName, ""),
-				Registry:      rs[1],
-				Image:         rs[2],
-				Version:       rs[3],
+			}
+		} else {
+			rl.ResourceName[resourceName].Container[cName] = ContainerInfo{
+				LongImageName: imageName,
 			}
 		}
 	}
