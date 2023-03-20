@@ -117,6 +117,9 @@ func GetDeployment() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
+			if !isCaaSComponent(resourceName, caasComponents) && CaaSCheck {
+				continue
+			}
 			// add a new resource to the map
 			cn := Container{
 				Container: make(map[string]ContainerInfo),
@@ -146,7 +149,7 @@ func GetDaemonSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
-			if !isCaaSComponent(resourceName, caasComponents) {
+			if !isCaaSComponent(resourceName, caasComponents) && CaaSCheck {
 				continue
 			}
 			// add a new resource to the map
@@ -177,7 +180,7 @@ func GetStatefulSets() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
-			if !isCaaSComponent(resourceName, caasComponents) {
+			if !isCaaSComponent(resourceName, caasComponents) && CaaSCheck {
 				continue
 			}
 			// add a new resource to the map
@@ -208,7 +211,7 @@ func GetPod() ResourceList {
 		}
 		for _, d := range resource.Items {
 			resourceName := d.Name
-			if !isCaaSComponent(resourceName, caasComponents) {
+			if !isCaaSComponent(resourceName, caasComponents) && CaaSCheck {
 				continue
 			}
 			// add a new resource to the map
