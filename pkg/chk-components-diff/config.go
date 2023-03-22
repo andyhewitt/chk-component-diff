@@ -46,7 +46,7 @@ func init() {
 	Labelarg = *label
 
 	if CaaSCheck {
-		Namespacesarg = []string{"kube-system", "caas-system", "caas-csi"}
+		Namespacesarg = []string{"kube-system", "caas-system", "caas-csi", "istio-system"}
 		Resourcesarg = []string{"deploy", "ds", "sts"}
 	}
 

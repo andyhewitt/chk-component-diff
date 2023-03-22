@@ -71,6 +71,8 @@ var caasComponents = []string{
 	"openebs-localpv-provisioner",
 	"openebs-ndm-operator",
 	"kube-state-metrics",
+	"istio-ingressgateway",
+	"istiod",
 }
 
 func isCaaSComponent(a string, list []string) bool {
