@@ -61,7 +61,7 @@ func processResourceList(resource string, set map[string]map[string]bool, cc *Cl
 	set[resource] = make(map[string]bool)
 
 	for _, cluster := range clusters {
-		currentcontext, err := GetConfigFromConfig(cluster, *kubeconfig)
+		currentcontext, err := GetClusterFromConfig(cluster, *kubeconfig)
 		if err != nil {
 			panic(err.Error())
 		}

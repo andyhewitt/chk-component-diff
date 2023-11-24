@@ -34,7 +34,7 @@ func GetNodes(label string, clusters []string) ClusterLabel {
 	var clusterLabel ClusterLabel
 	clusterLabel.Cluster = map[string]LabelList{}
 	for _, c := range clusters {
-		currentcontext, err := GetConfigFromConfig(c, *kubeconfig)
+		currentcontext, err := GetClusterFromConfig(c, *kubeconfig)
 		if err != nil {
 			panic(err.Error())
 		}

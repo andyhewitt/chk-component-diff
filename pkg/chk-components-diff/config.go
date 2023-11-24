@@ -70,7 +70,7 @@ func BuildConfigFromFlags(context, kubeconfigPath string) (*rest.Config, error) 
 		}).ClientConfig()
 }
 
-func GetConfigFromConfig(context, kubeconfigPath string) (string, error) {
+func GetClusterFromConfig(context, kubeconfigPath string) (string, error) {
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
 		&clientcmd.ConfigOverrides{})
